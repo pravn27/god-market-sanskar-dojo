@@ -166,6 +166,34 @@ export function riskRangeRows(capital: number | null): RiskRangeRow[] {
   ]
 }
 
+export interface ShareRangeRow {
+  id: ConvictionLevel | 'max'
+  label: string
+  /** Whole shares: risk allowed / risk per share, capped by what the capital buys at entry. */
+  shares: number | null
+  /** Shares x entry. */
+  amount: number | null
+}
+
+/** Shares allowed at each conviction level and at the maximum risk (equity). Empty until capital, entry and stop loss are valid. */
+export function shareRangeRows(capital: number | null, entry: number | null, stopLoss: number | null): ShareRangeRow[] {
+  const levels: { id: ConvictionLevel | 'max'; label: string; pct: number }[] = [
+    ...CONVICTION_LEVELS,
+    { id: 'max', label: 'Maximum', pct: TRADE_GATE_RULES.maxRiskPct },
+  ]
+  const empty = () => levels.map((l) => ({ id: l.id, label: l.label, shares: null, amount: null }))
+  if (!positive(capital) || !positive(entry) || !positive(stopLoss)) return empty()
+  const riskPerShare = round2(Math.abs(entry - stopLoss))
+  if (riskPerShare === 0) return empty()
+  const cap: number = capital
+  const price: number = entry
+  return levels.map((l) => {
+    const riskAllowed = round2((cap * l.pct) / 100)
+    const shares = Math.min(Math.floor(riskAllowed / riskPerShare), Math.floor(cap / price))
+    return { id: l.id, label: l.label, shares, amount: round2(shares * price) }
+  })
+}
+
 export function capReasons(counts: PlanCounts): string[] {
   const reasons: string[] = []
   if (counts.weekly >= TRADE_GATE_RULES.weeklyTradeCap) reasons.push(`Weekly cap reached (${TRADE_GATE_RULES.weeklyTradeCap} plans).`)

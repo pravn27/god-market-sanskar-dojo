@@ -1,6 +1,35 @@
 import { describe, expect, it } from 'vitest'
 
-import { adjustedEntryFor, capReasons, countPlans, evaluateSizing, riskRangeRows, weekStart, type SizingInput } from './tradeGate'
+import {
+  adjustedEntryFor, capReasons, countPlans, type ConvictionLevel, evaluateSizing, riskRangeRows, shareRangeRows, weekStart, type SizingInput,
+} from './tradeGate'
+
+describe('share range', () => {
+  it('shows shares and amount per conviction, like the shares-by-risk sheet', () => {
+    const rows = shareRangeRows(200_000, 3950, 3850).filter((r) => r.id !== 'max')
+    expect(rows.map((r) => r.shares)).toEqual([5, 10, 20, 30, 35])
+    expect(rows.map((r) => r.amount)).toEqual([19750, 39500, 79000, 118500, 138250])
+  })
+
+  it('adds the Maximum column at 2% risk', () => {
+    const max = shareRangeRows(200_000, 3950, 3850).find((r) => r.id === 'max')
+    expect(max?.label).toBe('Maximum')
+    expect(max?.shares).toBe(40)
+    expect(max?.amount).toBe(158_000)
+  })
+
+  it('matches the shares the sizing rule gives for each conviction', () => {
+    const rows = shareRangeRows(200_000, 3950, 3850).filter((r) => r.id !== 'max')
+    for (const row of rows) {
+      expect(evaluateSizing({ ...equityLong, conviction: row.id as ConvictionLevel }).quantity).toBe(row.shares)
+    }
+  })
+
+  it('shows nothing until capital, entry and stop loss are valid', () => {
+    expect(shareRangeRows(200_000, null, 3850).every((r) => r.shares === null)).toBe(true)
+    expect(shareRangeRows(200_000, 3850, 3850).every((r) => r.shares === null)).toBe(true)
+  })
+})
 
 describe('risk range', () => {
   it('shows the risk allowed per conviction and the maximum, like the risk sheet', () => {

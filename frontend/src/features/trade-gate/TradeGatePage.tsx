@@ -7,6 +7,7 @@ import {
   evaluateSizing,
   riskRangeRows,
   type RiskRangeRow,
+  shareRangeRows,
   TRADE_GATE_RULES,
   type Segment,
   type SizingInput,
@@ -14,6 +15,10 @@ import {
 import { useLogTradePlan, useTradeGateStatus } from './useTradeGate'
 
 const rupees = (value: number) => `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+
+/** Shows 10000 as "10,000" while typing; the value stays a plain number. */
+const withThousands = (value: string | number | undefined) => `${value ?? ''}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+const stripThousands = (value: string | undefined) => (value ?? '').replace(/,/g, '')
 
 const INITIAL: SizingInput = {
   instrument: '',
@@ -53,9 +58,21 @@ function GateStatusCard() {
 
 type RangeLine = { key: string; label: string } & Record<string, string>
 
-/** Horizontal risk range: conviction levels across the top, risk % and risk allowed below. */
-function RiskRangeTable({ capital, conviction }: { capital: number | null; conviction: ConvictionLevel }) {
+/**
+ * Horizontal risk range: conviction levels across the top. Risk % and risk allowed below;
+ * for equity, shares and amount follow under risk allowed.
+ */
+function RiskRangeTable({ capital, conviction, entry, stopLoss, isFno }: {
+  capital: number | null
+  conviction: ConvictionLevel
+  entry: number | null
+  stopLoss: number | null
+  isFno: boolean
+}) {
   const levels: RiskRangeRow[] = riskRangeRows(capital)
+  const shareCells = isFno ? null : shareRangeRows(capital, entry, stopLoss)
+  const shareFor = (id: string) => shareCells?.find((c) => c.id === id)
+
   const dataSource: RangeLine[] = [
     { key: 'pct', label: 'Risk of capital', ...Object.fromEntries(levels.map((l) => [l.id, `${l.pct}%`])) },
     {
@@ -63,9 +80,35 @@ function RiskRangeTable({ capital, conviction }: { capital: number | null; convi
       label: 'Risk allowed',
       ...Object.fromEntries(levels.map((l) => [l.id, l.amount === null ? '—' : rupees(l.amount)])),
     },
+    ...(shareCells
+      ? [
+          {
+            key: 'shares',
+            label: 'Shares allowed',
+            ...Object.fromEntries(levels.map((l) => {
+              const cell = shareFor(l.id)
+              return [l.id, cell?.shares == null ? '—' : `${cell.shares}`]
+            })),
+          },
+          {
+            key: 'shareAmount',
+            label: 'Investment',
+            ...Object.fromEntries(levels.map((l) => {
+              const cell = shareFor(l.id)
+              return [l.id, cell?.amount == null ? '—' : rupees(cell.amount)]
+            })),
+          },
+        ]
+      : []),
   ]
+
   const columns = [
-    { title: '', dataIndex: 'label', key: 'label', render: (label: string) => <strong>{label}</strong> },
+    {
+      title: 'Probability of conviction on TA',
+      dataIndex: 'label',
+      key: 'label',
+      render: (label: string) => <strong>{label}</strong>,
+    },
     ...levels.map((l) => ({
       title: l.id === 'max' ? <strong>Maximum</strong> : l.label,
       dataIndex: l.id,
@@ -119,9 +162,23 @@ export default function TradeGatePage() {
         <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 24 }}>
           <div style={{ maxWidth: 320 }}>
             <Typography.Text type="secondary">Capital</Typography.Text>
-            <InputNumber aria-label="Capital" style={{ width: '100%' }} min={0} value={form.capital} onChange={(capital) => update({ capital })} />
+            <InputNumber
+              aria-label="Capital"
+              style={{ width: '100%' }}
+              min={0}
+              value={form.capital}
+              formatter={withThousands}
+              parser={stripThousands}
+              onChange={(value) => update({ capital: value === null || value === '' ? null : Number(value) })}
+            />
           </div>
-          <RiskRangeTable capital={form.capital} conviction={form.conviction} />
+          <RiskRangeTable
+            capital={form.capital}
+            conviction={form.conviction}
+            entry={form.entry}
+            stopLoss={form.stopLoss}
+            isFno={isFno}
+          />
         </Space>
         <Row gutter={[24, 16]}>
           <Col xs={24} md={12}>
