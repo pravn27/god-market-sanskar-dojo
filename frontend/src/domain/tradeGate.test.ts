@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import { adjustedEntryFor, capReasons, countPlans, evaluateSizing, weekStart, type SizingInput } from './tradeGate'
+import { adjustedEntryFor, capReasons, countPlans, evaluateSizing, riskRangeRows, weekStart, type SizingInput } from './tradeGate'
+
+describe('risk range', () => {
+  it('shows the risk allowed per conviction and the maximum, like the risk sheet', () => {
+    const rows = riskRangeRows(200_000)
+    expect(rows.map((r) => r.amount)).toEqual([500, 1000, 2000, 3000, 3500, 4000])
+    expect(rows.map((r) => r.id)).toEqual(['below_low', 'low', 'medium', 'high', 'above_high', 'max'])
+  })
+
+  it('leaves amounts empty without a valid capital', () => {
+    expect(riskRangeRows(null).every((r) => r.amount === null)).toBe(true)
+    expect(riskRangeRows(0).every((r) => r.amount === null)).toBe(true)
+  })
+})
 
 const equityLong: SizingInput = {
   instrument: 'Test stock', segment: 'equity', equityDirection: 'long', capital: 200_000,

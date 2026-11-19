@@ -37,6 +37,10 @@ Source: `knowledge source/MM Plan & RR calculate/Risk _ Reward Calc.xlsx` and `I
 
 `Risk allowed = capital x conviction %`. Maximum risk per trade is 2% of capital.
 
+### Risk range
+
+Shown in the risk and sizing card for the entered capital: one row per conviction level with its risk allowed in rupees, plus a Maximum row (2%). The selected conviction row is highlighted. Amounts show "—" when capital is missing. This is a display of the same calculation; it does not change any sizing rule.
+
 ### Direction checks
 
 - Long: stop loss < entry < target.
@@ -94,6 +98,7 @@ A saved plan stores the inputs, quantity, lots, actual risk, R:R, the date, and 
 
 | Case | Inputs | Expected |
 | --- | --- | --- |
+| Risk range | capital 200,000 | 500; 1,000; 2,000; 3,000; 3,500 (Above High); Maximum 4,000 |
 | Equity long, Medium | capital 200,000; entry 3,950; SL 3,850 | risk allowed 2,000; 20 shares; actual risk 2,000; investment 79,000 |
 | Equity long, Above High | same | 35 shares (entry limit 50) |
 | F&O buy, Medium | capital 300,000; entry 7,780; SL 7,770; lot 250 | risk per lot 2,500; 1 lot |

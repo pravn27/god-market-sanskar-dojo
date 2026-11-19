@@ -32,6 +32,9 @@ describe('TradeGatePage', () => {
 
     type('Instrument', 'Test stock')
     type('Capital', '200000')
+    expect(screen.getByText('₹4,000')).toBeInTheDocument()
+    expect(screen.getAllByText('Medium').some((el) => el.closest('th')?.classList.contains('risk-range-selected'))).toBe(true)
+    expect(screen.getAllByText('Maximum').length).toBeGreaterThan(0)
     type('Entry', '3950')
     type('Stop loss', '3850')
     type('Target', '4100')

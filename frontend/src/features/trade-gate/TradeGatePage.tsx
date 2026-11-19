@@ -1,9 +1,12 @@
-import { Alert, Button, Card, Checkbox, Col, Input, InputNumber, Radio, Row, Segmented, Select, Space, Statistic, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Checkbox, Col, Input, InputNumber, Radio, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography } from 'antd'
 import { useMemo, useState } from 'react'
 
 import {
   CONVICTION_LEVELS,
+  type ConvictionLevel,
   evaluateSizing,
+  riskRangeRows,
+  type RiskRangeRow,
   TRADE_GATE_RULES,
   type Segment,
   type SizingInput,
@@ -48,6 +51,37 @@ function GateStatusCard() {
   )
 }
 
+type RangeLine = { key: string; label: string } & Record<string, string>
+
+/** Horizontal risk range: conviction levels across the top, risk % and risk allowed below. */
+function RiskRangeTable({ capital, conviction }: { capital: number | null; conviction: ConvictionLevel }) {
+  const levels: RiskRangeRow[] = riskRangeRows(capital)
+  const dataSource: RangeLine[] = [
+    { key: 'pct', label: 'Risk of capital', ...Object.fromEntries(levels.map((l) => [l.id, `${l.pct}%`])) },
+    {
+      key: 'amount',
+      label: 'Risk allowed',
+      ...Object.fromEntries(levels.map((l) => [l.id, l.amount === null ? '—' : rupees(l.amount)])),
+    },
+  ]
+  const columns = [
+    { title: '', dataIndex: 'label', key: 'label', render: (label: string) => <strong>{label}</strong> },
+    ...levels.map((l) => ({
+      title: l.id === 'max' ? <strong>Maximum</strong> : l.label,
+      dataIndex: l.id,
+      key: l.id,
+      align: 'right' as const,
+      className: l.id === conviction ? 'risk-range-selected' : undefined,
+    })),
+  ]
+  return (
+    <div className="risk-range-table">
+      <Table<RangeLine> size="small" pagination={false} rowKey="key" dataSource={dataSource} columns={columns} scroll={{ x: 'max-content' }} />
+      <Typography.Text type="secondary">Above High keeps a 0.25% buffer under the 2% maximum.</Typography.Text>
+    </div>
+  )
+}
+
 export default function TradeGatePage() {
   const [form, setForm] = useState<SizingInput>(INITIAL)
   const [lossAccepted, setLossAccepted] = useState(false)
@@ -81,7 +115,14 @@ export default function TradeGatePage() {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <GateStatusCard />
 
-      <Card title="Risk and position sizing" extra={<Tag>Max risk {TRADE_GATE_RULES.maxRiskPct}% · min R:R 1:{TRADE_GATE_RULES.minRewardRisk}</Tag>}>
+      <Card className="sizing-card" title="Risk and position sizing" extra={<Tag>Max risk {TRADE_GATE_RULES.maxRiskPct}% · min R:R 1:{TRADE_GATE_RULES.minRewardRisk}</Tag>}>
+        <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 24 }}>
+          <div style={{ maxWidth: 320 }}>
+            <Typography.Text type="secondary">Capital</Typography.Text>
+            <InputNumber aria-label="Capital" style={{ width: '100%' }} min={0} value={form.capital} onChange={(capital) => update({ capital })} />
+          </div>
+          <RiskRangeTable capital={form.capital} conviction={form.conviction} />
+        </Space>
         <Row gutter={[24, 16]}>
           <Col xs={24} md={12}>
             <Space direction="vertical" style={{ width: '100%' }}>
@@ -102,22 +143,16 @@ export default function TradeGatePage() {
                 </Radio.Group>
               )}
               <Input aria-label="Instrument" placeholder="Instrument" value={form.instrument} onChange={(e) => update({ instrument: e.target.value })} />
-              <Row gutter={8}>
-                <Col span={12}>
-                  <Typography.Text type="secondary">Capital</Typography.Text>
-                  <InputNumber aria-label="Capital" style={{ width: '100%' }} min={0} value={form.capital} onChange={(capital) => update({ capital })} />
-                </Col>
-                <Col span={12}>
-                  <Typography.Text type="secondary">Conviction</Typography.Text>
-                  <Select
-                    aria-label="Conviction"
-                    style={{ width: '100%' }}
-                    value={form.conviction}
-                    onChange={(conviction) => update({ conviction })}
-                    options={CONVICTION_LEVELS.map((c) => ({ value: c.id, label: `${c.label} · ${c.pct}%` }))}
-                  />
-                </Col>
-              </Row>
+              <div>
+                <Typography.Text type="secondary">Conviction</Typography.Text>
+                <Select
+                  aria-label="Conviction"
+                  style={{ width: '100%' }}
+                  value={form.conviction}
+                  onChange={(conviction) => update({ conviction })}
+                  options={CONVICTION_LEVELS.map((c) => ({ value: c.id, label: `${c.label} · ${c.pct}%` }))}
+                />
+              </div>
               <Row gutter={8}>
                 <Col span={8}>
                   <Typography.Text type="secondary">Entry</Typography.Text>

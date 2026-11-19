@@ -149,6 +149,23 @@ export function countPlans(planDates: IsoDate[], today: IsoDate): PlanCounts {
   }
 }
 
+export interface RiskRangeRow {
+  id: ConvictionLevel | 'max'
+  label: string
+  pct: number
+  /** Risk allowed in rupees for the capital; null when capital is missing. */
+  amount: number | null
+}
+
+/** Risk range table: each conviction level plus the maximum, for the given capital. */
+export function riskRangeRows(capital: number | null): RiskRangeRow[] {
+  const amountFor = (pct: number): number | null => (positive(capital) ? round2((capital * pct) / 100) : null)
+  return [
+    ...CONVICTION_LEVELS.map((c) => ({ id: c.id, label: c.label, pct: c.pct, amount: amountFor(c.pct) })),
+    { id: 'max' as const, label: 'Maximum', pct: TRADE_GATE_RULES.maxRiskPct, amount: amountFor(TRADE_GATE_RULES.maxRiskPct) },
+  ]
+}
+
 export function capReasons(counts: PlanCounts): string[] {
   const reasons: string[] = []
   if (counts.weekly >= TRADE_GATE_RULES.weeklyTradeCap) reasons.push(`Weekly cap reached (${TRADE_GATE_RULES.weeklyTradeCap} plans).`)
