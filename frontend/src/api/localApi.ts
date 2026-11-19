@@ -2,12 +2,14 @@ import { toIsoDate, type IsoDate } from '../domain/dates'
 import type { RitualLogs } from '../domain/dojo'
 import { buildDojoDay } from '../domain/dojoDay'
 import { findRitual, ritualsFor } from '../domain/rituals'
-import { DojoApiError, type DojoApi } from './client'
+import { capReasons, countPlans, evaluateSizing, TRADE_GATE_RULES } from '../domain/tradeGate'
+import { DojoApiError, type DojoApi, type TradeGateStatus, type TradePlan } from './client'
 
 export const STORAGE_KEY = 'sanskar-dojo-data-v1'
 
 interface StoredData {
   ritualLogs: RitualLogs
+  tradePlans: TradePlan[]
 }
 
 type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem'>
@@ -18,16 +20,28 @@ export function createLocalDojoApi(
 ): DojoApi {
   const read = (): StoredData => {
     const raw = storage.getItem(STORAGE_KEY)
-    if (!raw) return { ritualLogs: {} }
+    if (!raw) return { ritualLogs: {}, tradePlans: [] }
     try {
       const parsed = JSON.parse(raw) as Partial<StoredData>
-      return { ritualLogs: parsed.ritualLogs ?? {} }
+      return { ritualLogs: parsed.ritualLogs ?? {}, tradePlans: parsed.tradePlans ?? [] }
     } catch {
-      return { ritualLogs: {} }
+      return { ritualLogs: {}, tradePlans: [] }
     }
   }
   const write = (data: StoredData) => storage.setItem(STORAGE_KEY, JSON.stringify(data))
   const today = () => toIsoDate(now())
+
+  const gateStatus = (data: StoredData): TradeGateStatus => {
+    const counts = countPlans(data.tradePlans.map((p) => p.date), today())
+    return {
+      readiness: 'not_available',
+      locks: 'not_available',
+      counts,
+      weeklyCap: TRADE_GATE_RULES.weeklyTradeCap,
+      monthlyCap: TRADE_GATE_RULES.monthlyTradeCap,
+      capReasons: capReasons(counts),
+    }
+  }
 
   return {
     today,
@@ -51,6 +65,41 @@ export function createLocalDojoApi(
       data.ritualLogs[date] = [...done]
       write(data)
       return buildDojoDay(date, current, data.ritualLogs)
+    },
+
+    async getTradeGateStatus() {
+      return gateStatus(read())
+    },
+
+    async logTradePlan({ sizing, lossAccepted, slWithin30Seconds }) {
+      const data = read()
+      const result = evaluateSizing(sizing)
+      const reasons = [...result.errors, ...gateStatus(data).capReasons]
+      if (!lossAccepted || !slWithin30Seconds) reasons.push('Both commitments must be accepted.')
+      if (reasons.length > 0) throw new DojoApiError(400, reasons.join(' '))
+
+      const plan: TradePlan = {
+        id: `plan-${now().getTime()}-${data.tradePlans.length + 1}`,
+        date: today(),
+        createdAt: now().toISOString(),
+        instrument: sizing.instrument.trim(),
+        segment: sizing.segment,
+        direction: result.direction,
+        conviction: sizing.conviction,
+        capital: sizing.capital as number,
+        entry: sizing.entry as number,
+        stopLoss: sizing.stopLoss as number,
+        target: sizing.target as number,
+        lotSize: sizing.segment === 'equity' ? null : sizing.lotSize,
+        quantity: result.quantity,
+        lots: result.lots,
+        actualRisk: result.actualRisk,
+        rewardRisk: result.rewardRisk as number,
+        rulesVersion: TRADE_GATE_RULES.version,
+      }
+      data.tradePlans.push(plan)
+      write(data)
+      return plan
     },
   }
 }

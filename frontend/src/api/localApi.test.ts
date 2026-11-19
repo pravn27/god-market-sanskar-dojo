@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
+import type { SizingInput } from '../domain/tradeGate'
 import { createLocalDojoApi } from './localApi'
+
+const validSizing: SizingInput = {
+  instrument: 'Test stock', segment: 'equity', equityDirection: 'long', capital: 200_000,
+  conviction: 'medium', entry: 3950, stopLoss: 3850, target: 4300, lotSize: null,
+}
 
 function memoryStorage() {
   const items = new Map<string, string>()
@@ -38,6 +44,30 @@ describe('createLocalDojoApi', () => {
     await expect(api.toggleRitual('2026-11-19', 'webinar')).rejects.toMatchObject({ status: 400 })
     await expect(api.toggleRitual('2026-11-18', 'nope')).rejects.toMatchObject({ status: 404 })
     await expect(api.toggleRitual('2026-11-18', 'opportunity_hunting')).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('saves a valid trade plan and counts it toward the caps', async () => {
+    const api = createLocalDojoApi(memoryStorage(), now)
+    const plan = await api.logTradePlan({ sizing: validSizing, lossAccepted: true, slWithin30Seconds: true })
+    expect(plan.quantity).toBe(20)
+    expect(plan.rulesVersion).toBe(1)
+    const status = await api.getTradeGateStatus()
+    expect(status.readiness).toBe('not_available')
+    expect(status.counts).toEqual({ weekly: 1, monthly: 1 })
+  })
+
+  it('rejects missing commitments, R:R below 1:3, and the fourth plan in a week', async () => {
+    const api = createLocalDojoApi(memoryStorage(), now)
+    await expect(api.logTradePlan({ sizing: validSizing, lossAccepted: false, slWithin30Seconds: true }))
+      .rejects.toMatchObject({ status: 400 })
+    await expect(api.logTradePlan({ sizing: { ...validSizing, target: 4100 }, lossAccepted: true, slWithin30Seconds: true }))
+      .rejects.toThrow(/minimum is 1:3/)
+
+    for (let i = 0; i < 3; i += 1) {
+      await api.logTradePlan({ sizing: validSizing, lossAccepted: true, slWithin30Seconds: true })
+    }
+    await expect(api.logTradePlan({ sizing: validSizing, lossAccepted: true, slWithin30Seconds: true }))
+      .rejects.toThrow(/Weekly cap reached/)
   })
 
   it('marks only today as editable', async () => {

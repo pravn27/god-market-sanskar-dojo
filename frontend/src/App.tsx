@@ -4,10 +4,13 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 
 import DailyDojoPage from './features/daily-dojo/DailyDojoPage'
 import PlannedScreen from './features/planned/PlannedScreen'
+import TradeGatePage from './features/trade-gate/TradeGatePage'
 import { SCREENS } from './screens'
 import { useUiStore } from './state/uiStore'
 
 const { Header, Sider, Content, Footer } = Layout
+
+const BUILT_PATHS = new Set(['/dojo', '/trade-gate'])
 
 export default function App() {
   const location = useLocation()
@@ -50,7 +53,8 @@ export default function App() {
           <Content className="app-content">
             <Routes>
               <Route path="/dojo" element={<DailyDojoPage />} />
-              {SCREENS.filter((screen) => screen.path !== '/dojo').map((screen) => (
+              <Route path="/trade-gate" element={<TradeGatePage />} />
+              {SCREENS.filter((screen) => !BUILT_PATHS.has(screen.path)).map((screen) => (
                 <Route key={screen.path} path={screen.path} element={<PlannedScreen screen={screen} />} />
               ))}
               <Route path="*" element={<Navigate to="/dojo" replace />} />
