@@ -18,4 +18,4 @@ A discipline game for traders: build ASTA habits, character and daily rituals. P
 
 ## Status
 
-Phase 0: repository initialised. Documentation foundation is next.
+Phase 0: documentation foundation. Start with the [documentation map](docs/README.md) and the [delivery roadmap](docs/product/delivery-roadmap.md). Implementation begins with E-01 (local platform foundation).
