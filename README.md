@@ -18,4 +18,13 @@ A discipline game for traders: build ASTA habits, character and daily rituals. P
 
 ## Status
 
-Phase 0: documentation foundation. Start with the [documentation map](docs/README.md) and the [delivery roadmap](docs/product/delivery-roadmap.md). Implementation begins with E-01 (local platform foundation).
+Frontend first: the app shell and the Daily Dojo work on browser storage. The backend comes next. See the [documentation map](docs/README.md) and the [delivery roadmap](docs/product/delivery-roadmap.md).
+
+## Run the frontend
+
+```bash
+cd frontend
+npm ci
+npm run dev        # http://localhost:5173
+npm test           # unit and page tests
+```
