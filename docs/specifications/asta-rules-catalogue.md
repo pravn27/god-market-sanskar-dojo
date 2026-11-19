@@ -32,6 +32,12 @@ risk:
   default_brick_size: 5000
   default_risk_min: 1000
   default_risk_max: 3000
+trade_gate:
+  max_risk_pct: 2
+  conviction_pct: {below_low: 0.25, low: 0.5, medium: 1, high: 1.5, above_high: 1.75}
+  min_reward_risk: 3
+  weekly_trade_cap: 3
+  monthly_trade_cap: 12
 readiness:
   unlock_min: 80
   weights: {market_overview: 25, sentiment: 20, bond_risk: 15, plan: 25, calm_check: 15}
@@ -64,6 +70,8 @@ season_default:
 | Priorities | `knowledge source/Process.png` |
 | Discipline thresholds, Red Zone, capital lock | "how to take Stop loss" sheet in `2026/daily rituals _ habits.xlsx` |
 | Risk defaults | `2026/weekly.xlsx` focus sheet |
+| Trade Gate conviction, 2% maximum, 1:3 minimum | `Risk _ Reward Calc.xlsx` |
+| Trade caps (3 a week, 12 a month) | `invest & trade plans.xlsx`, `# trades` sheet |
 | Bond-risk thresholds | `Daily Rituals - Market Overview.xlsx` |
 | Season default | Satsang challenge sheet |
 | Readiness weights, streak minimum, level rules | Proposed in planning; confirm before E-03/E-10 |

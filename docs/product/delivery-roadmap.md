@@ -11,7 +11,7 @@ The design canvases created during planning (blueprint, v2 better option, comple
 | E-01 Local platform foundation | Project layout, typed API, test harness, frontend shell, startup script | Create the FastAPI service; scaffold the React app; establish tests | Frontend shell done; backend pending |
 | E-02 Daily Dojo | Rituals, mood level, market-day streak, sanskar oath | Seed ritual definitions; record a check-in; compute the streak | Frontend slice done on browser storage; backend pending |
 | E-03 Readiness gate | Market Overview checklist, readiness score, gate state | Model checklist items; compute the score; unlock at 80 | Backlog |
-| E-04 Trade Gate | Plan form, position sizing, risk-band enforcement, loss acceptance | Compute risk; block out-of-band plans; persist a plan | Backlog |
+| E-04 Trade Gate | Plan form, position sizing, risk-band enforcement, loss acceptance | Compute risk; block out-of-band plans; persist a plan | Frontend slice done on browser storage (sizing, R:R, caps, commitment); readiness and locks pending E-03/E-06; backend pending |
 | E-05 Audit and scorecard | Audit form, Grade A/F, quadrants, 3:30 PM scorecard | Grade one trade; compute Discipline %; show the scorecard | Backlog |
 | E-06 Consequence engine | Red Zone lock, capital lock and release | Trigger a lock; enforce it at the Trade Gate; release after 3 clean days | Backlog |
 | E-07 Virtues engine | Patience, Discipline, Focus scores | Compute each virtue from its signals | Backlog |
