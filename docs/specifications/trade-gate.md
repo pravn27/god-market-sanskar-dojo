@@ -14,8 +14,9 @@ Later builds: view building (setup, screen decision, weapon candle), the full ha
 | Field | Notes |
 | --- | --- |
 | Instrument | Free text, for example "Nifty 50" or "NG Mini" |
-| Segment | `equity`, `fno_buy` (F&O Buy/Long), `fno_sell` (F&O Sell/Short) |
-| Direction | Equity only: Buy/Long or Sell/Short. F&O direction follows the segment |
+| Segment | What is traded: `futures`, `options`, or `equity` |
+| Side | `buy` (Buy/Long) or `sell` (Sell/Short) of the traded instrument. Buy is long and sell is short for every segment |
+| Option type | Options only: `CE` or `PE`, the market view. Required for options. It does not change the side: buying a PE is a buy of the premium (long), and selling an option is short on the premium |
 | Capital | Rupees, greater than 0 |
 | Conviction | Probability of conviction on TA study (table below) |
 | Entry, stop loss, target | Prices or option premium levels, greater than 0 |
