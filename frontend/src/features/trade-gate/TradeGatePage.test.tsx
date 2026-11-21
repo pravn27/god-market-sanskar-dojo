@@ -58,4 +58,15 @@ describe('TradeGatePage', () => {
     const weekly = screen.getByText('Plans this week').closest('.ant-statistic') as HTMLElement
     await waitFor(() => expect(within(weekly).getByText('1')).toBeInTheDocument())
   })
+
+  it('shows lots allowed without an investment row for F&O buy', async () => {
+    renderGate()
+    fireEvent.click(await screen.findByText('F&O Buy / Long'))
+    type('Capital', '300000')
+    type('Lot size', '250')
+    type('Entry', '7780')
+    type('Stop loss', '7770')
+    expect(screen.getAllByText('Lots allowed').length).toBeGreaterThan(0)
+    expect(screen.queryAllByText('Investment')).toHaveLength(0)
+  })
 })

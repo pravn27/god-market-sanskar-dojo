@@ -5,6 +5,7 @@ import {
   CONVICTION_LEVELS,
   type ConvictionLevel,
   evaluateSizing,
+  lotRangeRows,
   riskRangeRows,
   type RiskRangeRow,
   shareRangeRows,
@@ -60,18 +61,52 @@ type RangeLine = { key: string; label: string } & Record<string, string>
 
 /**
  * Horizontal risk range: conviction levels across the top. Risk % and risk allowed below;
- * for equity, shares and amount follow under risk allowed.
+ * then shares allowed (equity) or lots allowed (F&O), with investment under each.
  */
-function RiskRangeTable({ capital, conviction, entry, stopLoss, isFno }: {
+function RiskRangeTable({ capital, conviction, entry, stopLoss, lotSize, isFno }: {
   capital: number | null
   conviction: ConvictionLevel
   entry: number | null
   stopLoss: number | null
+  lotSize: number | null
   isFno: boolean
 }) {
   const levels: RiskRangeRow[] = riskRangeRows(capital)
   const shareCells = isFno ? null : shareRangeRows(capital, entry, stopLoss)
-  const shareFor = (id: string) => shareCells?.find((c) => c.id === id)
+  const lotCells = isFno ? lotRangeRows(capital, entry, stopLoss, lotSize) : null
+  const cellFor = <T extends { id: string }>(cells: T[], id: string) => cells.find((c) => c.id === id)
+
+  const sizeRows: RangeLine[] = shareCells
+    ? [
+        {
+          key: 'shares',
+          label: 'Shares allowed',
+          ...Object.fromEntries(levels.map((l) => {
+            const cell = cellFor(shareCells, l.id)
+            return [l.id, cell?.shares == null ? '—' : `${cell.shares}`]
+          })),
+        },
+        {
+          key: 'shareInvestment',
+          label: 'Investment',
+          ...Object.fromEntries(levels.map((l) => {
+            const cell = cellFor(shareCells, l.id)
+            return [l.id, cell?.amount == null ? '—' : rupees(cell.amount)]
+          })),
+        },
+      ]
+    : lotCells
+      ? [
+          {
+            key: 'lots',
+            label: 'Lots allowed',
+            ...Object.fromEntries(levels.map((l) => {
+              const cell = cellFor(lotCells, l.id)
+              return [l.id, cell?.lots == null ? '—' : `${cell.lots}`]
+            })),
+          },
+        ]
+      : []
 
   const dataSource: RangeLine[] = [
     { key: 'pct', label: 'Risk of capital', ...Object.fromEntries(levels.map((l) => [l.id, `${l.pct}%`])) },
@@ -80,26 +115,7 @@ function RiskRangeTable({ capital, conviction, entry, stopLoss, isFno }: {
       label: 'Risk allowed',
       ...Object.fromEntries(levels.map((l) => [l.id, l.amount === null ? '—' : rupees(l.amount)])),
     },
-    ...(shareCells
-      ? [
-          {
-            key: 'shares',
-            label: 'Shares allowed',
-            ...Object.fromEntries(levels.map((l) => {
-              const cell = shareFor(l.id)
-              return [l.id, cell?.shares == null ? '—' : `${cell.shares}`]
-            })),
-          },
-          {
-            key: 'shareAmount',
-            label: 'Investment',
-            ...Object.fromEntries(levels.map((l) => {
-              const cell = shareFor(l.id)
-              return [l.id, cell?.amount == null ? '—' : rupees(cell.amount)]
-            })),
-          },
-        ]
-      : []),
+    ...sizeRows,
   ]
 
   const columns = [
@@ -177,6 +193,7 @@ export default function TradeGatePage() {
             conviction={form.conviction}
             entry={form.entry}
             stopLoss={form.stopLoss}
+            lotSize={form.lotSize}
             isFno={isFno}
           />
         </Space>

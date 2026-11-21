@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  adjustedEntryFor, capReasons, countPlans, type ConvictionLevel, evaluateSizing, riskRangeRows, shareRangeRows, weekStart, type SizingInput,
+  adjustedEntryFor, capReasons, countPlans, type ConvictionLevel, evaluateSizing, lotRangeRows, riskRangeRows, shareRangeRows, weekStart, type SizingInput,
 } from './tradeGate'
 
 describe('share range', () => {
@@ -28,6 +28,37 @@ describe('share range', () => {
   it('shows nothing until capital, entry and stop loss are valid', () => {
     expect(shareRangeRows(200_000, null, 3850).every((r) => r.shares === null)).toBe(true)
     expect(shareRangeRows(200_000, 3850, 3850).every((r) => r.shares === null)).toBe(true)
+  })
+})
+
+describe('lot range (F&O)', () => {
+  // Spec example: capital 3,00,000; entry 7,780; SL 7,770 (risk 10); lot 250 => risk per lot 2,500.
+  const base = { capital: 300_000, entry: 7780, stopLoss: 7770, lotSize: 250 }
+
+  it('shows lots per conviction, matching the F&O sizing rule', () => {
+    const rows = lotRangeRows(base.capital, base.entry, base.stopLoss, base.lotSize).filter((r) => r.id !== 'max')
+    expect(rows.map((r) => r.lots)).toEqual([0, 0, 1, 1, 2])
+  })
+
+  it('adds the Maximum column at 2% risk', () => {
+    const max = lotRangeRows(base.capital, base.entry, base.stopLoss, base.lotSize).find((r) => r.id === 'max')
+    expect(max?.lots).toBe(2)
+  })
+
+  it('matches the lots the F&O sizing rule gives for each conviction', () => {
+    const rows = lotRangeRows(base.capital, base.entry, base.stopLoss, base.lotSize).filter((r) => r.id !== 'max')
+    for (const row of rows) {
+      const sized = evaluateSizing({
+        instrument: 'NG Mini', segment: 'fno_buy', equityDirection: 'long', capital: base.capital,
+        conviction: row.id as ConvictionLevel, entry: base.entry, stopLoss: base.stopLoss, target: 7820, lotSize: base.lotSize,
+      })
+      expect(sized.lots).toBe(row.lots)
+    }
+  })
+
+  it('shows nothing until lot size is a whole number', () => {
+    expect(lotRangeRows(300_000, 7780, 7770, null).every((r) => r.lots === null)).toBe(true)
+    expect(lotRangeRows(300_000, 7780, 7770, 25.5).every((r) => r.lots === null)).toBe(true)
   })
 })
 

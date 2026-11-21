@@ -166,6 +166,12 @@ export function riskRangeRows(capital: number | null): RiskRangeRow[] {
   ]
 }
 
+/** Conviction levels plus the maximum risk, in table order. */
+const RANGE_LEVELS: { id: ConvictionLevel | 'max'; label: string; pct: number }[] = [
+  ...CONVICTION_LEVELS,
+  { id: 'max', label: 'Maximum', pct: TRADE_GATE_RULES.maxRiskPct },
+]
+
 export interface ShareRangeRow {
   id: ConvictionLevel | 'max'
   label: string
@@ -177,20 +183,45 @@ export interface ShareRangeRow {
 
 /** Shares allowed at each conviction level and at the maximum risk (equity). Empty until capital, entry and stop loss are valid. */
 export function shareRangeRows(capital: number | null, entry: number | null, stopLoss: number | null): ShareRangeRow[] {
-  const levels: { id: ConvictionLevel | 'max'; label: string; pct: number }[] = [
-    ...CONVICTION_LEVELS,
-    { id: 'max', label: 'Maximum', pct: TRADE_GATE_RULES.maxRiskPct },
-  ]
-  const empty = () => levels.map((l) => ({ id: l.id, label: l.label, shares: null, amount: null }))
+  const empty = () => RANGE_LEVELS.map((l) => ({ id: l.id, label: l.label, shares: null, amount: null }))
   if (!positive(capital) || !positive(entry) || !positive(stopLoss)) return empty()
   const riskPerShare = round2(Math.abs(entry - stopLoss))
   if (riskPerShare === 0) return empty()
   const cap: number = capital
   const price: number = entry
-  return levels.map((l) => {
+  return RANGE_LEVELS.map((l) => {
     const riskAllowed = round2((cap * l.pct) / 100)
     const shares = Math.min(Math.floor(riskAllowed / riskPerShare), Math.floor(cap / price))
     return { id: l.id, label: l.label, shares, amount: round2(shares * price) }
+  })
+}
+
+export interface LotRangeRow {
+  id: ConvictionLevel | 'max'
+  label: string
+  /** Whole lots: risk allowed / (risk per unit x lot size). Same rule as the F&O sizing. */
+  lots: number | null
+}
+
+/** Lots allowed at each conviction level and at the maximum risk (F&O). Empty until capital, entry, stop loss and lot size are valid. */
+export function lotRangeRows(
+  capital: number | null,
+  entry: number | null,
+  stopLoss: number | null,
+  lotSize: number | null,
+): LotRangeRow[] {
+  const empty = () => RANGE_LEVELS.map((l) => ({ id: l.id, label: l.label, lots: null }))
+  if (!positive(capital) || !positive(entry) || !positive(stopLoss) || !positive(lotSize) || !Number.isInteger(lotSize)) {
+    return empty()
+  }
+  const riskPerUnit = round2(Math.abs(entry - stopLoss))
+  if (riskPerUnit === 0) return empty()
+  const cap: number = capital
+  const lot: number = lotSize
+  return RANGE_LEVELS.map((l) => {
+    const riskAllowed = round2((cap * l.pct) / 100)
+    const lots = Math.floor(riskAllowed / (riskPerUnit * lot))
+    return { id: l.id, label: l.label, lots }
   })
 }
 
