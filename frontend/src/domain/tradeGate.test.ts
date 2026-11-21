@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  adjustedEntryFor, capReasons, countPlans, type ConvictionLevel, evaluateSizing, lotRangeRows, riskRangeRows, shareRangeRows, weekStart, type SizingInput,
+  adjustedEntryFor, capReasons, countPlans, type ConvictionLevel, evaluateSizing, lotRangeRows, pointRangeRows, riskRangeRows, shareRangeRows, weekStart, type SizingInput,
 } from './tradeGate'
 
 describe('share range', () => {
@@ -84,6 +84,17 @@ describe('lot range (F&O)', () => {
   it('shows nothing until lot size is a whole number', () => {
     expect(lotRangeRows(300_000, 7780, 7770, null).every((r) => r.lots === null)).toBe(true)
     expect(lotRangeRows(300_000, 7780, 7770, 25.5).every((r) => r.lots === null)).toBe(true)
+  })
+})
+
+describe('points allowed (F&O)', () => {
+  it('converts the risk allowed into points for one lot', () => {
+    expect(pointRangeRows(300_000, 250).map((r) => r.points)).toEqual([3, 6, 12, 18, 21, 24])
+  })
+
+  it('stays blank until the lot size is a whole number', () => {
+    expect(pointRangeRows(300_000, null).every((r) => r.points === null)).toBe(true)
+    expect(pointRangeRows(300_000, 25.5).every((r) => r.points === null)).toBe(true)
   })
 })
 

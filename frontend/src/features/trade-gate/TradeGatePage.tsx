@@ -6,6 +6,7 @@ import {
   evaluateSizing,
   lotRangeRows,
   type OptionType,
+  pointRangeRows,
   riskRangeRows,
   type RiskRangeRow,
   type Segment,
@@ -17,6 +18,7 @@ import {
 import { useLogTradePlan, useTradeGateStatus } from './useTradeGate'
 
 const rupees = (value: number) => `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+const pointsLabel = (value: number) => value.toLocaleString('en-IN', { maximumFractionDigits: 2 })
 
 /** Shows 10000 as "10,000" while typing; the value stays a plain number. */
 const withThousands = (value: string | number | undefined) => `${value ?? ''}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
@@ -27,7 +29,7 @@ const INITIAL: SizingInput = {
   segment: 'futures',
   side: 'buy',
   optionType: null,
-  capital: 50_000,
+  capital: 100_000,
   conviction: 'medium',
   entry: null,
   stopLoss: null,
@@ -63,7 +65,7 @@ type RangeLine = { key: string; label: string } & Record<string, string>
 
 /**
  * Horizontal risk range: conviction levels across the top. Risk % and risk allowed below;
- * then shares allowed (equity) or lots allowed (futures and options), with investment under shares only.
+ * then points allowed and lots allowed for futures and options, or shares and investment for equity.
  */
 function RiskRangeTable({ capital, conviction, entry, stopLoss, lotSize, isFno, onPick }: {
   capital: number | null
@@ -76,6 +78,7 @@ function RiskRangeTable({ capital, conviction, entry, stopLoss, lotSize, isFno, 
 }) {
   const levels: RiskRangeRow[] = riskRangeRows(capital)
   const shareCells = isFno ? null : shareRangeRows(capital, entry, stopLoss)
+  const pointCells = isFno ? pointRangeRows(capital, lotSize) : null
   const lotCells = isFno ? lotRangeRows(capital, entry, stopLoss, lotSize) : null
   const cellFor = <T extends { id: string }>(cells: T[], id: string) => cells.find((c) => c.id === id)
 
@@ -118,6 +121,16 @@ function RiskRangeTable({ capital, conviction, entry, stopLoss, lotSize, isFno, 
       label: 'Risk allowed',
       ...Object.fromEntries(levels.map((l) => [l.id, l.amount === null ? '—' : rupees(l.amount)])),
     },
+    ...(pointCells
+      ? [{
+          key: 'points',
+          label: 'Risk Points allowed',
+          ...Object.fromEntries(levels.map((l) => {
+            const cell = cellFor(pointCells, l.id)
+            return [l.id, cell?.points == null ? '—' : pointsLabel(cell.points)]
+          })),
+        }]
+      : []),
     ...sizeRows,
   ]
 
@@ -162,6 +175,14 @@ export default function TradeGatePage() {
   const update = (patch: Partial<SizingInput>) => {
     logPlan.reset()
     setForm((prev) => ({ ...prev, ...patch }))
+  }
+
+  /** A new instrument starts a new trade. Capital stays, because it belongs to the account. */
+  const switchSegment = (segment: Segment) => {
+    logPlan.reset()
+    setLossAccepted(false)
+    setSlWithin30Seconds(false)
+    setForm((prev) => ({ ...INITIAL, segment, capital: prev.capital }))
   }
 
   const blockers = [...result.errors, ...(status?.capReasons ?? [])]
@@ -212,8 +233,11 @@ export default function TradeGatePage() {
             <Space direction="vertical" style={{ width: '100%' }}>
               <Segmented<Segment>
                 block
+                size="large"
+                className="instrument-tabs"
                 value={form.segment}
-                onChange={(segment) => update({ segment, optionType: segment === 'options' ? form.optionType : null })}
+                onChange={switchSegment}
+                styles={{ label: { fontSize: 16, fontWeight: 600, paddingInline: 12 } }}
                 options={[
                   { label: 'Futures', value: 'futures' },
                   { label: 'Options', value: 'options' },

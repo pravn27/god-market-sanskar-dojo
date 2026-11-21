@@ -231,6 +231,26 @@ export function lotRangeRows(
   })
 }
 
+export interface PointRangeRow {
+  id: ConvictionLevel | 'max'
+  label: string
+  /** Points one lot can move against the trade before the risk allowed is used: risk allowed / lot size. */
+  points: number | null
+}
+
+/** Points allowed at each conviction level and at the maximum risk (F&O). Empty until capital and a whole lot size are set. */
+export function pointRangeRows(capital: number | null, lotSize: number | null): PointRangeRow[] {
+  const empty = () => RANGE_LEVELS.map((l) => ({ id: l.id, label: l.label, points: null }))
+  if (!positive(capital) || !positive(lotSize) || !Number.isInteger(lotSize)) return empty()
+  const cap: number = capital
+  const lot: number = lotSize
+  return RANGE_LEVELS.map((l) => ({
+    id: l.id,
+    label: l.label,
+    points: round2(round2((cap * l.pct) / 100) / lot),
+  }))
+}
+
 export function capReasons(counts: PlanCounts): string[] {
   const reasons: string[] = []
   if (counts.weekly >= TRADE_GATE_RULES.weeklyTradeCap) reasons.push(`Weekly cap reached (${TRADE_GATE_RULES.weeklyTradeCap} plans).`)

@@ -31,6 +31,7 @@ describe('TradeGatePage', () => {
     expect(await screen.findByText('Not yet available (E-03)')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Equity'))
+    expect(screen.queryAllByText('Points allowed')).toHaveLength(0)
     type('Instrument', 'Test stock')
     type('Capital', '200000')
     expect(screen.getByLabelText('Capital')).toHaveValue('200,000')
@@ -68,6 +69,20 @@ describe('TradeGatePage', () => {
     expect(screen.queryByLabelText('Conviction')).not.toBeInTheDocument()
   })
 
+  it('clears the trade when the instrument changes and keeps capital', async () => {
+    renderGate()
+    type('Instrument', 'NG Mini')
+    type('Capital', '300000')
+    type('Entry', '7780')
+    fireEvent.click(screen.getByText('Sell / Short'))
+    fireEvent.click(screen.getByText('Equity'))
+    expect(screen.getByLabelText('Instrument')).toHaveValue('')
+    expect(screen.getByLabelText('Entry')).toHaveValue('')
+    expect(screen.getByLabelText('Capital')).toHaveValue('300,000')
+    expect(screen.getByText('Buy / Long').closest('label')).toHaveClass('ant-radio-button-wrapper-checked')
+    expect(screen.queryByLabelText('Lot size')).not.toBeInTheDocument()
+  })
+
   it('shows lots allowed without an investment row for F&O buy', async () => {
     renderGate()
     fireEvent.click(await screen.findByText('Futures'))
@@ -76,6 +91,8 @@ describe('TradeGatePage', () => {
     type('Entry', '7780')
     type('Stop loss', '7770')
     expect(screen.getAllByText('Lots allowed').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Risk Points allowed').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('12').length).toBeGreaterThan(0)
     expect(screen.queryAllByText('Investment')).toHaveLength(0)
   })
 })

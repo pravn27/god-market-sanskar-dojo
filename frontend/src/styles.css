@@ -37,6 +37,9 @@ body { background: var(--app-bg); }
 .dojo-ritual-row { align-items: center; display: flex; gap: 12px; justify-content: space-between; padding: 8px 0; }
 .dojo-ritual-row + .dojo-ritual-row { border-top: 1px solid var(--surface-border); }
 
+.instrument-tabs.ant-segmented { padding: 4px; }
+.instrument-tabs .ant-segmented-item-label { line-height: 40px; min-height: 40px; }
+.instrument-tabs .ant-segmented-item-selected .ant-segmented-item-label { font-weight: 700; }
 .sizing-card { border-inline-start: 4px solid #1890ff; }
 .sizing-card .ant-card-head { background: var(--hero-tint); }
 .sizing-card .ant-card-head-title { font-size: 18px; font-weight: 700; }
