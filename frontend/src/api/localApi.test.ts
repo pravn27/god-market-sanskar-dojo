@@ -4,7 +4,7 @@ import type { SizingInput } from '../domain/tradeGate'
 import { createLocalDojoApi } from './localApi'
 
 const validSizing: SizingInput = {
-  instrument: 'Test stock', segment: 'equity', equityDirection: 'long', capital: 200_000,
+  instrument: 'Test stock', segment: 'equity', side: 'buy', optionType: null, capital: 200_000,
   conviction: 'medium', entry: 3950, stopLoss: 3850, target: 4300, lotSize: null,
 }
 

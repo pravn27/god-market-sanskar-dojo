@@ -19,14 +19,20 @@ export const CONVICTION_LEVELS: { id: ConvictionLevel; label: string; pct: numbe
   { id: 'above_high', label: 'Above High', pct: 1.75 },
 ]
 
-export type Segment = 'equity' | 'fno_buy' | 'fno_sell'
+/** What is traded. Futures and options both use lots; equity uses shares. */
+export type Segment = 'equity' | 'futures' | 'options'
+/** Buy or sell of the traded instrument. Buying or selling an option trades its premium. */
+export type Side = 'buy' | 'sell'
+/** Options only: the market view. It does not change the side (buying a PE is still a buy of the premium). */
+export type OptionType = 'CE' | 'PE'
 export type Direction = 'long' | 'short'
 
 export interface SizingInput {
   instrument: string
   segment: Segment
-  /** Used for equity only; F&O direction follows the segment. */
-  equityDirection: Direction
+  side: Side
+  /** Required for options; null otherwise. */
+  optionType: OptionType | null
   capital: number | null
   conviction: ConvictionLevel
   entry: number | null
@@ -51,10 +57,9 @@ export interface SizingResult {
   adjustedEntry: number | null
 }
 
-export function directionFor(segment: Segment, equityDirection: Direction): Direction {
-  if (segment === 'fno_buy') return 'long'
-  if (segment === 'fno_sell') return 'short'
-  return equityDirection
+/** Buy is long and sell is short for every instrument, because options are traded on their premium. */
+export function directionFor(side: Side): Direction {
+  return side === 'buy' ? 'long' : 'short'
 }
 
 const positive = (value: number | null): value is number => value !== null && Number.isFinite(value) && value > 0
@@ -69,7 +74,7 @@ export function adjustedEntryFor(direction: Direction, stopLoss: number, target:
 }
 
 export function evaluateSizing(input: SizingInput): SizingResult {
-  const direction = directionFor(input.segment, input.equityDirection)
+  const direction = directionFor(input.side)
   const isFno = input.segment !== 'equity'
   const errors: string[] = []
   const empty: SizingResult = {
@@ -83,6 +88,7 @@ export function evaluateSizing(input: SizingInput): SizingResult {
     errors.push('Enter entry, stop loss, and target greater than 0.')
   }
   if (isFno && !(positive(input.lotSize) && Number.isInteger(input.lotSize))) errors.push('Enter a whole lot size.')
+  if (input.segment === 'options' && input.optionType === null) errors.push('Choose CE or PE for options.')
   if (errors.length > 0) return empty
 
   const capital = input.capital as number

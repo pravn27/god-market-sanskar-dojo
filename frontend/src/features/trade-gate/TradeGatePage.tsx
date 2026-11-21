@@ -1,17 +1,18 @@
-import { Alert, Button, Card, Checkbox, Col, Input, InputNumber, Radio, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Checkbox, Col, Input, InputNumber, Radio, Row, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd'
 import { useMemo, useState } from 'react'
 
 import {
-  CONVICTION_LEVELS,
   type ConvictionLevel,
   evaluateSizing,
   lotRangeRows,
+  type OptionType,
   riskRangeRows,
   type RiskRangeRow,
+  type Segment,
+  type Side,
+  type SizingInput,
   shareRangeRows,
   TRADE_GATE_RULES,
-  type Segment,
-  type SizingInput,
 } from '../../domain/tradeGate'
 import { useLogTradePlan, useTradeGateStatus } from './useTradeGate'
 
@@ -23,8 +24,9 @@ const stripThousands = (value: string | undefined) => (value ?? '').replace(/,/g
 
 const INITIAL: SizingInput = {
   instrument: '',
-  segment: 'equity',
-  equityDirection: 'long',
+  segment: 'futures',
+  side: 'buy',
+  optionType: null,
   capital: 50_000,
   conviction: 'medium',
   entry: null,
@@ -61,15 +63,16 @@ type RangeLine = { key: string; label: string } & Record<string, string>
 
 /**
  * Horizontal risk range: conviction levels across the top. Risk % and risk allowed below;
- * then shares allowed (equity) or lots allowed (F&O), with investment under each.
+ * then shares allowed (equity) or lots allowed (futures and options), with investment under shares only.
  */
-function RiskRangeTable({ capital, conviction, entry, stopLoss, lotSize, isFno }: {
+function RiskRangeTable({ capital, conviction, entry, stopLoss, lotSize, isFno, onPick }: {
   capital: number | null
   conviction: ConvictionLevel
   entry: number | null
   stopLoss: number | null
   lotSize: number | null
   isFno: boolean
+  onPick: (conviction: ConvictionLevel) => void
 }) {
   const levels: RiskRangeRow[] = riskRangeRows(capital)
   const shareCells = isFno ? null : shareRangeRows(capital, entry, stopLoss)
@@ -125,18 +128,24 @@ function RiskRangeTable({ capital, conviction, entry, stopLoss, lotSize, isFno }
       key: 'label',
       render: (label: string) => <strong>{label}</strong>,
     },
-    ...levels.map((l) => ({
-      title: l.id === 'max' ? <strong>Maximum</strong> : l.label,
-      dataIndex: l.id,
-      key: l.id,
-      align: 'right' as const,
-      className: l.id === conviction ? 'risk-range-selected' : undefined,
-    })),
+    ...levels.map((l) => {
+      const pickable = l.id !== 'max'
+      const pick = pickable ? () => onPick(l.id as ConvictionLevel) : undefined
+      return {
+        title: l.id === 'max' ? <strong>Maximum</strong> : l.label,
+        dataIndex: l.id,
+        key: l.id,
+        align: 'right' as const,
+        className: [pickable ? 'risk-range-pick' : '', l.id === conviction ? 'risk-range-selected' : ''].filter(Boolean).join(' '),
+        onHeaderCell: () => ({ onClick: pick }),
+        onCell: () => ({ onClick: pick }),
+      }
+    }),
   ]
   return (
     <div className="risk-range-table">
       <Table<RangeLine> size="small" pagination={false} rowKey="key" dataSource={dataSource} columns={columns} scroll={{ x: 'max-content' }} />
-      <Typography.Text type="secondary">Above High keeps a 0.25% buffer under the 2% maximum.</Typography.Text>
+      <Typography.Text type="secondary">Click a column to choose conviction. Above High keeps a 0.25% buffer under the 2% maximum.</Typography.Text>
     </div>
   )
 }
@@ -195,6 +204,7 @@ export default function TradeGatePage() {
             stopLoss={form.stopLoss}
             lotSize={form.lotSize}
             isFno={isFno}
+            onPick={(conviction) => update({ conviction })}
           />
         </Space>
         <Row gutter={[24, 16]}>
@@ -203,30 +213,27 @@ export default function TradeGatePage() {
               <Segmented<Segment>
                 block
                 value={form.segment}
-                onChange={(segment) => update({ segment })}
+                onChange={(segment) => update({ segment, optionType: segment === 'options' ? form.optionType : null })}
                 options={[
+                  { label: 'Futures', value: 'futures' },
+                  { label: 'Options', value: 'options' },
                   { label: 'Equity', value: 'equity' },
-                  { label: 'F&O Buy / Long', value: 'fno_buy' },
-                  { label: 'F&O Sell / Short', value: 'fno_sell' },
                 ]}
               />
-              {!isFno && (
-                <Radio.Group value={form.equityDirection} onChange={(e) => update({ equityDirection: e.target.value })}>
-                  <Radio.Button value="long">Buy / Long</Radio.Button>
-                  <Radio.Button value="short">Sell / Short</Radio.Button>
-                </Radio.Group>
+              <Radio.Group className="side-toggle" value={form.side} onChange={(e) => update({ side: e.target.value as Side })}>
+                <Radio.Button value="buy" className="side-buy">Buy / Long</Radio.Button>
+                <Radio.Button value="sell" className="side-sell">Sell / Short</Radio.Button>
+              </Radio.Group>
+              {form.segment === 'options' && (
+                <div>
+                  <Typography.Text type="secondary">Option type (your market view)</Typography.Text>
+                  <Radio.Group value={form.optionType} onChange={(e) => update({ optionType: e.target.value as OptionType })}>
+                    <Radio.Button value="CE">CE (call)</Radio.Button>
+                    <Radio.Button value="PE">PE (put)</Radio.Button>
+                  </Radio.Group>
+                </div>
               )}
               <Input aria-label="Instrument" placeholder="Instrument" value={form.instrument} onChange={(e) => update({ instrument: e.target.value })} />
-              <div>
-                <Typography.Text type="secondary">Conviction</Typography.Text>
-                <Select
-                  aria-label="Conviction"
-                  style={{ width: '100%' }}
-                  value={form.conviction}
-                  onChange={(conviction) => update({ conviction })}
-                  options={CONVICTION_LEVELS.map((c) => ({ value: c.id, label: `${c.label} · ${c.pct}%` }))}
-                />
-              </div>
               <Row gutter={8}>
                 <Col span={8}>
                   <Typography.Text type="secondary">Entry</Typography.Text>

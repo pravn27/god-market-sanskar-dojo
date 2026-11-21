@@ -30,6 +30,7 @@ describe('TradeGatePage', () => {
     renderGate()
     expect(await screen.findByText('Not yet available (E-03)')).toBeInTheDocument()
 
+    fireEvent.click(screen.getByText('Equity'))
     type('Instrument', 'Test stock')
     type('Capital', '200000')
     expect(screen.getByLabelText('Capital')).toHaveValue('200,000')
@@ -59,9 +60,17 @@ describe('TradeGatePage', () => {
     await waitFor(() => expect(within(weekly).getByText('1')).toBeInTheDocument())
   })
 
+  it('sets conviction by clicking a risk range column', async () => {
+    renderGate()
+    const high = (await screen.findAllByText('High'))[0]
+    fireEvent.click(high)
+    expect(screen.getAllByText('High').some((el) => el.closest('th')?.classList.contains('risk-range-selected'))).toBe(true)
+    expect(screen.queryByLabelText('Conviction')).not.toBeInTheDocument()
+  })
+
   it('shows lots allowed without an investment row for F&O buy', async () => {
     renderGate()
-    fireEvent.click(await screen.findByText('F&O Buy / Long'))
+    fireEvent.click(await screen.findByText('Futures'))
     type('Capital', '300000')
     type('Lot size', '250')
     type('Entry', '7780')

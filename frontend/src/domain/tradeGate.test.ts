@@ -31,6 +31,31 @@ describe('share range', () => {
   })
 })
 
+describe('options', () => {
+  const option: SizingInput = {
+    instrument: 'NIFTY 24500 PE', segment: 'options', side: 'buy', optionType: 'PE', capital: 300_000,
+    conviction: 'medium', entry: 100, stopLoss: 90, target: 130, lotSize: 75,
+  }
+
+  it('requires CE or PE', () => {
+    const r = evaluateSizing({ ...option, optionType: null })
+    expect(r.errors).toContain('Choose CE or PE for options.')
+  })
+
+  it('buying a PE is a long on the premium, with the same lot maths as futures', () => {
+    const r = evaluateSizing(option)
+    expect(r.direction).toBe('long')
+    expect(r.errors).toEqual([])
+    expect(r.lots).toBe(Math.floor(3000 / (10 * 75)))
+  })
+
+  it('selling an option is a short on the premium', () => {
+    const r = evaluateSizing({ ...option, side: 'sell', stopLoss: 110, target: 60 })
+    expect(r.direction).toBe('short')
+    expect(r.errors).toEqual([])
+  })
+})
+
 describe('lot range (F&O)', () => {
   // Spec example: capital 3,00,000; entry 7,780; SL 7,770 (risk 10); lot 250 => risk per lot 2,500.
   const base = { capital: 300_000, entry: 7780, stopLoss: 7770, lotSize: 250 }
@@ -49,7 +74,7 @@ describe('lot range (F&O)', () => {
     const rows = lotRangeRows(base.capital, base.entry, base.stopLoss, base.lotSize).filter((r) => r.id !== 'max')
     for (const row of rows) {
       const sized = evaluateSizing({
-        instrument: 'NG Mini', segment: 'fno_buy', equityDirection: 'long', capital: base.capital,
+        instrument: 'NG Mini', segment: 'futures', side: 'buy', optionType: null, capital: base.capital,
         conviction: row.id as ConvictionLevel, entry: base.entry, stopLoss: base.stopLoss, target: 7820, lotSize: base.lotSize,
       })
       expect(sized.lots).toBe(row.lots)
@@ -76,7 +101,7 @@ describe('risk range', () => {
 })
 
 const equityLong: SizingInput = {
-  instrument: 'Test stock', segment: 'equity', equityDirection: 'long', capital: 200_000,
+  instrument: 'Test stock', segment: 'equity', side: 'buy', optionType: null, capital: 200_000,
   conviction: 'medium', entry: 3950, stopLoss: 3850, target: 4300, lotSize: null,
 }
 
@@ -104,7 +129,7 @@ describe('evaluateSizing — equity', () => {
 
 describe('evaluateSizing — F&O', () => {
   const fnoBuy: SizingInput = {
-    instrument: 'NG Mini', segment: 'fno_buy', equityDirection: 'long', capital: 300_000,
+    instrument: 'NG Mini', segment: 'futures', side: 'buy', optionType: null, capital: 300_000,
     conviction: 'medium', entry: 7780, stopLoss: 7770, target: 7820, lotSize: 250,
   }
 
@@ -115,7 +140,7 @@ describe('evaluateSizing — F&O', () => {
 
   it('sizes F&O sell lots like the risk sheet', () => {
     const r = evaluateSizing({
-      instrument: 'Nifty 50', segment: 'fno_sell', equityDirection: 'long', capital: 100_000,
+      instrument: 'Nifty 50', segment: 'futures', side: 'sell', optionType: null, capital: 100_000,
       conviction: 'low', entry: 5, stopLoss: 7, target: 0.5, lotSize: 65,
     })
     expect(r.direction).toBe('short')

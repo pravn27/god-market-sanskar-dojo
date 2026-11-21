@@ -40,4 +40,12 @@ body { background: var(--app-bg); }
 .sizing-card { border-inline-start: 4px solid #1890ff; }
 .sizing-card .ant-card-head { background: var(--hero-tint); }
 .sizing-card .ant-card-head-title { font-size: 18px; font-weight: 700; }
+.risk-range-table .risk-range-pick { cursor: pointer; }
+.risk-range-table .risk-range-pick:hover { background: var(--hero-tint); }
 .risk-range-table .risk-range-selected { background: var(--hero-tint); font-weight: 600; }
+.side-toggle { display: flex; width: 100%; }
+.side-toggle .ant-radio-button-wrapper { flex: 1; text-align: center; }
+.side-toggle .ant-radio-button-wrapper-checked.side-buy,
+.side-toggle .ant-radio-button-wrapper-checked.side-buy:hover { background: #52c41a; border-color: #52c41a; color: #fff; }
+.side-toggle .ant-radio-button-wrapper-checked.side-sell,
+.side-toggle .ant-radio-button-wrapper-checked.side-sell:hover { background: #ff4d4f; border-color: #ff4d4f; color: #fff; }
