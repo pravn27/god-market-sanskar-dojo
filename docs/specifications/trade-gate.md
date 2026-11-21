@@ -43,7 +43,9 @@ Shown in the risk and sizing card for the entered capital: one row per convictio
 
 ### Shares range
 
-Shown in the risk range table, under Risk allowed, as the rows "Shares allowed" and "Investment", for equity only. For each conviction level: `shares = min(floor(risk allowed / risk per share), floor(capital / entry))` and `amount = shares x entry`. It matches the equity quantity in the sizing rule. It stays blank until capital, entry and stop loss are valid.
+Shown in the risk range table, under Risk allowed, as the rows "Shares allowed" and "Investment" for equity, or "Lots allowed" alone for F&O. For each conviction level: `shares = min(floor(risk allowed / risk per share), floor(capital / entry))` and `amount = shares x entry`. It matches the equity quantity in the sizing rule. It stays blank until capital, entry and stop loss are valid.
+
+For F&O: `lots = floor(risk allowed / (risk per unit x lot size))`, the same as the sizing rule with no capital cap. The table shows lots only, with no investment row: the contract value moves with the price, so it is not a fixed figure. Margin is not calculated; the trader checks it with the broker. Lot size must be a whole number before the lots row shows.
 
 ### Direction checks
 
