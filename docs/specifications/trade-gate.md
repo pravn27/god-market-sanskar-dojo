@@ -48,6 +48,8 @@ Shown in the risk range table, under Risk allowed, as the rows "Shares allowed" 
 
 For F&O: `lots = floor(risk allowed / (risk per unit x lot size))`, the same as the sizing rule with no capital cap. The table shows lots only, with no investment row: the contract value moves with the price, so it is not a fixed figure. Margin is not calculated; the trader checks it with the broker. Lot size must be a whole number before the lots row shows.
 
+Under Risk allowed, F&O also shows "Risk Points allowed": `points = risk allowed / lot size`. That is how far one lot can move against the trade before the risk budget is used. It needs only capital and a whole lot size, and it includes the Maximum column.
+
 ### Direction checks
 
 - Long: stop loss < entry < target.
