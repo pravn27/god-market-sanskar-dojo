@@ -1,5 +1,5 @@
 import type { IsoDate } from '../domain/dates'
-import type { DojoDay } from '../domain/dojoDay'
+import type { DojoDay, DojoRitual } from '../domain/dojoDay'
 import type { ConvictionLevel, Direction, PlanCounts, Segment, SizingInput } from '../domain/tradeGate'
 
 export type { DojoDay, DojoRitual } from '../domain/dojoDay'
@@ -76,18 +76,32 @@ export interface RitualInput {
   countsForStreak: boolean
 }
 
-/** One day in the History calendar. Counts are for daily rituals only. */
+/**
+ * One day in the History calendar, shared by the month, week and year views.
+ * Counts are for daily rituals only.
+ */
 export interface MonthDay {
   date: IsoDate
   marketDay: boolean
   /** After today. Never counted and never clickable. */
   future: boolean
+  /** On or after the tracker start. Days before it are never counted or coloured. */
+  tracked: boolean
+  /** Inside the edit window and tracked, so its ticks can change. */
+  editable: boolean
   dailyTotal: number
   dailyDone: number
-  /** Market day with at least the streak minimum of daily rituals. */
+  /** At least the streak minimum of daily rituals. Weekends are coloured too. */
   onTrack: boolean
-  /** Market day with every daily ritual done. */
+  /** Every daily ritual done. */
   full: boolean
+}
+
+/** Totals over market days that are tracked and already over. */
+export interface CalendarSummary {
+  marketDays: number
+  onTrackDays: number
+  fullDays: number
 }
 
 export interface MonthView {
@@ -98,11 +112,35 @@ export interface MonthView {
   /** Next month, or null after the current month. */
   nextMonth: string | null
   days: MonthDay[]
-  summary: {
-    marketDays: number
-    onTrackDays: number
-    fullDays: number
-  }
+  summary: CalendarSummary
+}
+
+/** A day in the Week view, with its checklist. */
+export interface WeekDay extends MonthDay {
+  rituals: DojoRitual[]
+}
+
+export interface WeekView {
+  /** Monday, `YYYY-MM-DD`. */
+  weekStart: IsoDate
+  /** Sunday, `YYYY-MM-DD`. */
+  weekEnd: IsoDate
+  /** Previous week's Monday, or null before the first tracked week. */
+  prevWeek: IsoDate | null
+  /** Next week's Monday, or null after the current week. */
+  nextWeek: IsoDate | null
+  days: WeekDay[]
+  summary: CalendarSummary
+}
+
+export interface YearView {
+  year: number
+  /** Previous year, or null when it has no tracked days. */
+  prevYear: number | null
+  /** Next year, or null after the current year. */
+  nextYear: number | null
+  days: MonthDay[]
+  summary: CalendarSummary
 }
 
 /** Market-day totals for one month, for the growth chart. */
@@ -122,6 +160,9 @@ export interface DojoApi {
   today(): IsoDate
   getDojoDay(date: IsoDate): Promise<DojoDay>
   getMonth(month: string): Promise<MonthView>
+  /** `weekStart` must be a Monday, `YYYY-MM-DD`. */
+  getWeek(weekStart: IsoDate): Promise<WeekView>
+  getYear(year: number): Promise<YearView>
   getGrowth(): Promise<GrowthMonth[]>
   toggleRitual(date: IsoDate, ritualId: string): Promise<DojoDay>
   listRituals(date: IsoDate): Promise<RitualDefinition[]>

@@ -4,10 +4,14 @@ import { moodLevel, sanskarLineFor } from '../domain/dojo'
 import type { RitualCadence } from '../domain/rituals'
 import {
   DojoApiError,
+  type CalendarSummary,
   type DojoApi,
   type GrowthMonth,
   type LogTradePlanInput,
+  type MonthDay,
   type MonthView,
+  type WeekView,
+  type YearView,
   type RitualDefinition,
   type RitualInput,
   type RitualSchedule,
@@ -105,16 +109,48 @@ interface ApiMonth {
   month: string
   prev_month: string | null
   next_month: string | null
-  days: {
-    date: IsoDate
-    market_day: boolean
-    future: boolean
-    daily_total: number
-    daily_done: number
-    on_track: boolean
-    full: boolean
-  }[]
-  summary: { market_days: number; on_track_days: number; full_days: number }
+  days: ApiCalendarDay[]
+  summary: ApiSummary
+}
+
+/** One day as returned by the month, week and year endpoints. */
+interface ApiCalendarDay {
+  date: IsoDate
+  market_day: boolean
+  future: boolean
+  tracked: boolean
+  editable: boolean
+  daily_total: number
+  daily_done: number
+  on_track: boolean
+  full: boolean
+}
+
+interface ApiSummary {
+  market_days: number
+  on_track_days: number
+  full_days: number
+}
+
+/** Shape returned by `GET /api/v1/profiles/{slug}/weeks/{start}`. */
+interface ApiWeek {
+  week_start: IsoDate
+  week_end: IsoDate
+  prev_week: IsoDate | null
+  next_week: IsoDate | null
+  days: (ApiCalendarDay & {
+    rituals: { ritual_key: string; label: string; minutes: number; cadence: ApiCadence; done: boolean }[]
+  })[]
+  summary: ApiSummary
+}
+
+/** Shape returned by `GET /api/v1/profiles/{slug}/years/{year}`. */
+interface ApiYear {
+  year: number
+  prev_year: number | null
+  next_year: number | null
+  days: ApiCalendarDay[]
+  summary: ApiSummary
 }
 
 /** Shape returned by `GET /api/v1/profiles/{slug}/growth`. */
@@ -131,25 +167,61 @@ function toGrowth(body: ApiGrowth): GrowthMonth[] {
   }))
 }
 
+function toCalendarDay(d: ApiCalendarDay): MonthDay {
+  return {
+    date: d.date,
+    marketDay: d.market_day,
+    future: d.future,
+    tracked: d.tracked,
+    editable: d.editable,
+    dailyTotal: d.daily_total,
+    dailyDone: d.daily_done,
+    onTrack: d.on_track,
+    full: d.full,
+  }
+}
+
+function toCalendarSummary(s: ApiSummary): CalendarSummary {
+  return { marketDays: s.market_days, onTrackDays: s.on_track_days, fullDays: s.full_days }
+}
+
 function toMonthView(body: ApiMonth): MonthView {
   return {
     month: body.month,
     prevMonth: body.prev_month,
     nextMonth: body.next_month,
+    days: body.days.map(toCalendarDay),
+    summary: toCalendarSummary(body.summary),
+  }
+}
+
+function toWeekView(body: ApiWeek): WeekView {
+  return {
+    weekStart: body.week_start,
+    weekEnd: body.week_end,
+    prevWeek: body.prev_week,
+    nextWeek: body.next_week,
     days: body.days.map((d) => ({
-      date: d.date,
-      marketDay: d.market_day,
-      future: d.future,
-      dailyTotal: d.daily_total,
-      dailyDone: d.daily_done,
-      onTrack: d.on_track,
-      full: d.full,
+      ...toCalendarDay(d),
+      rituals: d.rituals.map((r) => ({
+        id: r.ritual_key,
+        label: r.label,
+        minutes: r.minutes,
+        cadence: CADENCE[r.cadence],
+        done: r.done,
+      })),
     })),
-    summary: {
-      marketDays: body.summary.market_days,
-      onTrackDays: body.summary.on_track_days,
-      fullDays: body.summary.full_days,
-    },
+    summary: toCalendarSummary(body.summary),
+  }
+}
+
+function toYearView(body: ApiYear): YearView {
+  return {
+    year: body.year,
+    prevYear: body.prev_year,
+    nextYear: body.next_year,
+    days: body.days.map(toCalendarDay),
+    summary: toCalendarSummary(body.summary),
   }
 }
 
@@ -236,6 +308,14 @@ export function createHttpDojoApi({
 
     async getMonth(month: string) {
       return toMonthView(await send<ApiMonth>(`/months/${encodeURIComponent(month)}`))
+    },
+
+    async getWeek(weekStart: IsoDate) {
+      return toWeekView(await send<ApiWeek>(`/weeks/${encodeURIComponent(weekStart)}`))
+    },
+
+    async getYear(year: number) {
+      return toYearView(await send<ApiYear>(`/years/${year}`))
     },
 
     async getGrowth() {

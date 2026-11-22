@@ -194,6 +194,116 @@ def test_growth_never_counts_the_future(app, client, clock):
     assert november["on_track_days"] == 0
 
 
+def week(client, start):
+    response = client.get(f"{BASE}/weeks/{start}")
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def year(client, value):
+    response = client.get(f"{BASE}/years/{value}")
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_a_week_lists_monday_to_sunday_with_each_days_checklist(client):
+    body = week(client, "2026-11-16")
+    assert body["week_start"] == "2026-11-16"
+    assert body["week_end"] == "2026-11-22"
+    assert [d["date"] for d in body["days"]][0] == "2026-11-16"
+    assert len(body["days"]) == 7
+    monday_keys = [r["ritual_key"] for r in body["days"][0]["rituals"]]
+    assert monday_keys == DAILY
+    saturday_keys = [r["ritual_key"] for r in body["days"][5]["rituals"]]
+    assert "opportunity_hunting" in saturday_keys
+
+
+def test_a_week_marks_the_ticked_rituals_done(app, client):
+    log_history(app, "2026-11-17", DAILY[:2])
+    tuesday = week(client, "2026-11-16")["days"][1]
+    done = {r["ritual_key"]: r["done"] for r in tuesday["rituals"]}
+    assert done["market_overview"] is True
+    assert done["backtesting"] is True
+    assert done["geo_revision"] is False
+
+
+def test_a_week_must_start_on_a_monday(client):
+    assert client.get(f"{BASE}/weeks/2026-11-22").status_code == 422  # Sunday
+    assert client.get(f"{BASE}/weeks/2026-11-23").status_code == 200  # Monday
+
+
+@pytest.mark.parametrize("value", ["2026-02-30", "nope", "2026-11", "0001-01-05", "0001-01-01"])
+def test_invalid_week_start_is_rejected(client, value):
+    assert client.get(f"{BASE}/weeks/{value}").status_code == 422
+
+
+def test_week_navigation_stops_at_the_current_week_and_the_tracker_start(client):
+    current = week(client, "2026-11-16")  # the week of today
+    assert current["next_week"] is None
+    assert current["prev_week"] == "2026-11-09"
+
+    first = week(client, "2025-12-29")  # contains 1 Jan 2026, the tracker start
+    assert first["prev_week"] is None
+    assert first["next_week"] == "2026-01-05"
+
+
+def test_days_before_the_tracker_start_are_untracked_and_not_editable(client, clock):
+    clock.move_to("2026-01-02")
+    first = week(client, "2025-12-29")
+    before = first["days"][2]  # 31 Dec 2025
+    assert before["tracked"] is False
+    assert before["editable"] is False
+    assert before["rituals"] == []
+    assert first["days"][3]["tracked"] is True  # 1 Jan 2026
+
+
+def test_a_day_before_the_tracker_start_cannot_be_ticked(client, clock):
+    clock.move_to("2026-01-02")
+    response = client.post(f"{BASE}/days/2025-12-31/rituals/webinar/toggle")
+    assert response.status_code == 404
+
+
+def test_a_year_lists_every_day(client):
+    body = year(client, "2026")
+    assert len(body["days"]) == 365
+    assert body["days"][0]["date"] == "2026-01-01"
+    assert body["days"][-1]["date"] == "2026-12-31"
+
+
+def test_a_leap_year_has_366_days(client):
+    assert len(year(client, "2028")["days"]) == 366
+
+
+def test_year_summary_counts_only_tracked_market_days_already_over(app, client):
+    log_history(app, "2026-11-16", DAILY[:4])
+    log_history(app, "2026-11-17", DAILY)
+    body = year(client, "2026")
+    assert body["summary"]["on_track_days"] == 2
+    assert body["summary"]["full_days"] == 1
+    # 1 Jan to 22 Nov 2026 has 232 market days (weekdays only).
+    assert body["summary"]["market_days"] == 232
+
+
+def test_year_navigation_stops_at_the_tracker_year_and_the_current_year(client, clock):
+    assert year(client, "2026")["prev_year"] is None
+    assert year(client, "2026")["next_year"] is None
+    clock.move_to("2027-02-01")
+    assert year(client, "2027")["prev_year"] == 2026
+    assert year(client, "2026")["next_year"] == 2027
+
+
+def test_a_year_before_the_tracker_has_no_tracked_days(client):
+    body = year(client, "2025")
+    assert all(day["tracked"] is False for day in body["days"])
+    assert body["summary"] == {"market_days": 0, "on_track_days": 0, "full_days": 0}
+    assert body["next_year"] == 2026
+
+
+@pytest.mark.parametrize("value", ["abc", "0000", "26"])
+def test_invalid_year_is_rejected(client, value):
+    assert client.get(f"{BASE}/years/{value}").status_code == 422
+
+
 def test_a_ritual_retired_later_still_counts_on_its_past_days(app, client, clock):
     log_history(app, "2026-11-16", DAILY[:4])
     clock.move_to("2026-11-23")

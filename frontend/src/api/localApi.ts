@@ -55,6 +55,14 @@ export function createLocalDojoApi(
       throw new DojoApiError(501, 'History needs the local backend.')
     },
 
+    async getWeek() {
+      throw new DojoApiError(501, 'History needs the local backend.')
+    },
+
+    async getYear() {
+      throw new DojoApiError(501, 'History needs the local backend.')
+    },
+
     async getGrowth() {
       throw new DojoApiError(501, 'Growth needs the local backend.')
     },

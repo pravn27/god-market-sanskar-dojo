@@ -24,6 +24,8 @@ export function useRitualMutations() {
       queryClient.invalidateQueries({ queryKey: ['rituals'] }),
       queryClient.invalidateQueries({ queryKey: ['dojo-day'] }),
       queryClient.invalidateQueries({ queryKey: ['month'] }),
+      queryClient.invalidateQueries({ queryKey: ['week'] }),
+      queryClient.invalidateQueries({ queryKey: ['year'] }),
       queryClient.invalidateQueries({ queryKey: ['growth'] }),
     ])
 

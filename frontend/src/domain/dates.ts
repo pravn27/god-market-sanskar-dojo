@@ -17,6 +17,11 @@ export function addDays(iso: IsoDate, days: number): IsoDate {
   return date.toISOString().slice(0, 10)
 }
 
+/** The Monday of the week containing `iso`. Weeks start on Monday throughout the app. */
+export function mondayOf(iso: IsoDate): IsoDate {
+  return addDays(iso, -((dayOfWeek(iso) + 6) % 7))
+}
+
 /** Ticks can be corrected for the last 7 days, today included. Older days are read-only. Mirrors `EDIT_WINDOW_DAYS` in the API. */
 export const EDIT_WINDOW_DAYS = 7
 

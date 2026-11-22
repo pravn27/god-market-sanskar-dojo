@@ -47,8 +47,8 @@ describe('createHttpDojoApi', () => {
       prev_month: '2026-10',
       next_month: null,
       days: [
-        { date: '2026-11-02', market_day: true, future: false, daily_total: 6, daily_done: 4, on_track: true, full: false },
-        { date: '2026-11-03', market_day: false, future: false, daily_total: 6, daily_done: 6, on_track: false, full: false },
+        { date: '2026-11-02', market_day: true, future: false, tracked: true, editable: true, daily_total: 6, daily_done: 4, on_track: true, full: false },
+        { date: '2026-11-03', market_day: false, future: false, tracked: true, editable: false, daily_total: 6, daily_done: 6, on_track: true, full: true },
       ],
       summary: { market_days: 1, on_track_days: 1, full_days: 0 },
     }
@@ -62,12 +62,75 @@ describe('createHttpDojoApi', () => {
       date: '2026-11-02',
       marketDay: true,
       future: false,
+      tracked: true,
+      editable: true,
       dailyTotal: 6,
       dailyDone: 4,
       onTrack: true,
       full: false,
     })
+    // A weekend day keeps its colour but is not in the summary.
+    expect(view.days[1].full).toBe(true)
     expect(view.summary).toEqual({ marketDays: 1, onTrackDays: 1, fullDays: 0 })
+  })
+
+  it('maps the week response, including each day checklist', async () => {
+    const day = (date: string, done: boolean) => ({
+      date,
+      market_day: true,
+      future: false,
+      tracked: true,
+      editable: true,
+      daily_total: 1,
+      daily_done: done ? 1 : 0,
+      on_track: false,
+      full: done,
+      rituals: [
+        { ritual_key: 'backtesting', label: 'Daily Backtesting', minutes: 30, cadence: 'daily', done },
+        { ritual_key: 'opportunity_hunting', label: 'Opportunity hunting', minutes: 60, cadence: 'weekend', done: false },
+      ],
+    })
+    const weekBody = {
+      week_start: '2026-11-16',
+      week_end: '2026-11-22',
+      prev_week: '2026-11-09',
+      next_week: null,
+      days: [day('2026-11-16', true), day('2026-11-17', false)],
+      summary: { market_days: 2, on_track_days: 0, full_days: 1 },
+    }
+    const fetchImpl = vi.fn(async () => jsonResponse(weekBody))
+    const week = await api(fetchImpl as unknown as typeof fetch).getWeek('2026-11-16')
+
+    expect(fetchImpl).toHaveBeenCalledWith('/api/v1/profiles/praveen/weeks/2026-11-16', expect.anything())
+    expect(week.weekStart).toBe('2026-11-16')
+    expect(week.weekEnd).toBe('2026-11-22')
+    expect(week.prevWeek).toBe('2026-11-09')
+    expect(week.nextWeek).toBeNull()
+    expect(week.days[0].rituals).toEqual([
+      { id: 'backtesting', label: 'Daily Backtesting', minutes: 30, cadence: 'daily', done: true },
+      { id: 'opportunity_hunting', label: 'Opportunity hunting', minutes: 60, cadence: 'weekend', done: false },
+    ])
+    expect(week.days[0].editable).toBe(true)
+    expect(week.summary).toEqual({ marketDays: 2, onTrackDays: 0, fullDays: 1 })
+  })
+
+  it('maps the year response and keeps the navigation limits', async () => {
+    const yearBody = {
+      year: 2026,
+      prev_year: null,
+      next_year: null,
+      days: [
+        { date: '2025-12-31', market_day: true, future: false, tracked: false, editable: false, daily_total: 0, daily_done: 0, on_track: false, full: false },
+      ],
+      summary: { market_days: 0, on_track_days: 0, full_days: 0 },
+    }
+    const fetchImpl = vi.fn(async () => jsonResponse(yearBody))
+    const year = await api(fetchImpl as unknown as typeof fetch).getYear(2026)
+
+    expect(fetchImpl).toHaveBeenCalledWith('/api/v1/profiles/praveen/years/2026', expect.anything())
+    expect(year.prevYear).toBeNull()
+    expect(year.nextYear).toBeNull()
+    expect(year.days[0].tracked).toBe(false)
   })
 
   it('maps the growth response for the chart', async () => {

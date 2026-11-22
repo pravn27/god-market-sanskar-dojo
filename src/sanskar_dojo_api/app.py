@@ -152,6 +152,16 @@ def create_app(db_path: str | Path | None = None, clock: Clock | None = None) ->
         year, number = months.parse_month(month)
         return months.month_view(conn, profile_id, year, number, now().date())
 
+    @app.get(f"{API_PREFIX}/profiles/{{slug}}/weeks/{{start}}")
+    def get_week(slug: str, start: str, conn: sqlite3.Connection = Depends(db)) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        return months.week_view(conn, profile_id, months.parse_week_start(start), now().date())
+
+    @app.get(f"{API_PREFIX}/profiles/{{slug}}/years/{{year}}")
+    def get_year(slug: str, year: str, conn: sqlite3.Connection = Depends(db)) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        return months.year_view(conn, profile_id, months.parse_year(year), now().date())
+
     @app.get(f"{API_PREFIX}/profiles/{{slug}}/growth")
     def get_growth(slug: str, conn: sqlite3.Connection = Depends(db)) -> dict:
         profile_id = profile_id_for(conn, slug)

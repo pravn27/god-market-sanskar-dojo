@@ -2,8 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, expect, it, vi } from 'vitest'
 
 import AppProviders from '../../AppProviders'
-import type { DojoApi, MonthDay, MonthView } from '../../api/client'
-import type { IsoDate } from '../../domain/dates'
+import type { DojoApi, MonthDay, MonthView, WeekView, YearView } from '../../api/client'
+import { addDays, dayOfWeek, type IsoDate } from '../../domain/dates'
 import { buildDojoDay } from '../../domain/dojoDay'
 import HistoryPage from './HistoryPage'
 import { cellStatus } from './monthGrid'
@@ -25,6 +25,8 @@ function buildMonth(month: string, doneFor: (date: IsoDate) => number): MonthVie
       date,
       marketDay,
       future,
+      tracked: true,
+      editable: !future && date >= '2026-11-15',
       dailyTotal: 6,
       dailyDone,
       onTrack: !future && dailyDone >= 4,
@@ -47,6 +49,63 @@ function buildMonth(month: string, doneFor: (date: IsoDate) => number): MonthVie
 
 const doneFor = (date: IsoDate) => (date === '2026-11-17' ? 6 : date === '2026-11-16' ? 4 : 2)
 
+/** Seven days with one daily ritual. Editable from the last 7 days (16 Nov onwards). Only 17 Nov is ticked. */
+function weekFixture(weekStart: IsoDate): WeekView {
+  const days = Array.from({ length: 7 }, (_, offset) => {
+    const date = addDays(weekStart, offset)
+    const ticked = date === '2026-11-17'
+    return {
+      date,
+      marketDay: offset < 5,
+      future: date > TODAY,
+      tracked: true,
+      editable: date >= '2026-11-16' && date <= TODAY,
+      dailyTotal: 1,
+      dailyDone: ticked ? 1 : 0,
+      onTrack: false,
+      full: ticked,
+      rituals: [{ id: 'backtesting', label: 'Daily Backtesting', minutes: 30, cadence: 'daily' as const, done: ticked }],
+    }
+  })
+  return {
+    weekStart,
+    weekEnd: addDays(weekStart, 6),
+    prevWeek: weekStart === '2026-11-16' ? '2026-11-09' : null,
+    nextWeek: null,
+    days,
+    summary: { marketDays: 5, onTrackDays: 0, fullDays: 1 },
+  }
+}
+
+/** Every day of the year. Tracked from 1 Jan 2026, future after today, and only 17 Nov is ticked. */
+function yearFixture(year: number): YearView {
+  const days: MonthDay[] = []
+  for (let date = `${year}-01-01`; date.startsWith(`${year}-`); date = addDays(date, 1)) {
+    const weekday = dayOfWeek(date)
+    const future = date > TODAY
+    const tracked = date >= '2026-01-01'
+    const ticked = tracked && !future && date === '2026-11-17'
+    days.push({
+      date,
+      marketDay: weekday !== 0 && weekday !== 6,
+      future,
+      tracked,
+      editable: false,
+      dailyTotal: 6,
+      dailyDone: ticked ? 6 : 0,
+      onTrack: ticked,
+      full: ticked,
+    })
+  }
+  return {
+    year,
+    prevYear: null,
+    nextYear: null,
+    days,
+    summary: { marketDays: 5, onTrackDays: 1, fullDays: 1 },
+  }
+}
+
 function fakeApi(overrides: Partial<DojoApi> = {}) {
   const logs = { '2026-11-17': ['backtesting'] }
   const api = {
@@ -55,6 +114,8 @@ function fakeApi(overrides: Partial<DojoApi> = {}) {
     getDojoDay: vi.fn(async (date: IsoDate) => buildDojoDay(date, TODAY, logs)),
     toggleRitual: vi.fn(async (date: IsoDate) => buildDojoDay(date, TODAY, {})),
     getGrowth: vi.fn(async () => [{ month: '2026-11', marketDays: 15, onTrackDays: 2, fullDays: 1 }]),
+    getWeek: vi.fn(async (weekStart: IsoDate) => weekFixture(weekStart)),
+    getYear: vi.fn(async (year: number) => yearFixture(year)),
     ...overrides,
   } as unknown as DojoApi
   return api
@@ -102,6 +163,119 @@ describe('HistoryPage', () => {
     expect(await screen.findByText('November 2026')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled())
     expect(api.getMonth).toHaveBeenLastCalledWith('2026-11')
+  })
+
+  it('switches to the week view and steps back one week', async () => {
+    const api = fakeApi()
+    renderHistory(api)
+    await screen.findByText('Market days so far')
+
+    fireEvent.click(screen.getByText('Week'))
+    expect(await screen.findByRole('heading', { name: '16 Nov – 22 Nov 2026' })).toBeInTheDocument()
+    expect(api.getWeek).toHaveBeenCalledWith('2026-11-16')
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Previous week' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Previous week' }))
+    expect(await screen.findByRole('heading', { name: '9 Nov – 15 Nov 2026' })).toBeInTheDocument()
+    expect(api.getWeek).toHaveBeenLastCalledWith('2026-11-09')
+  })
+
+  it('shows each day of the week with its checklist', async () => {
+    renderHistory(fakeApi())
+    await screen.findByText('Market days so far')
+
+    fireEvent.click(screen.getByText('Week'))
+    expect(await screen.findByText('Mon 16 Nov')).toBeInTheDocument()
+    expect(screen.getByText('Sun 22 Nov')).toBeInTheDocument()
+    expect(screen.getAllByRole('checkbox', { name: 'Daily Backtesting' })).toHaveLength(7)
+  })
+
+  it('ticks a day inside the last 7 days from the week view', async () => {
+    const api = fakeApi()
+    renderHistory(api)
+    await screen.findByText('Market days so far')
+
+    fireEvent.click(screen.getByText('Week'))
+    const card = (await screen.findByText('Wed 18 Nov')).closest('.ant-card') as HTMLElement
+    const ritual = within(card).getByRole('checkbox', { name: 'Daily Backtesting' })
+    expect(ritual).toBeEnabled()
+
+    fireEvent.click(ritual)
+    await waitFor(() => expect(api.toggleRitual).toHaveBeenCalledWith('2026-11-18', 'backtesting'))
+  })
+
+  it('keeps an older week read-only', async () => {
+    renderHistory(fakeApi())
+    await screen.findByText('Market days so far')
+
+    fireEvent.click(screen.getByText('Week'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Previous week' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Previous week' }))
+
+    const card = (await screen.findByText('Mon 9 Nov')).closest('.ant-card') as HTMLElement
+    expect(within(card).getByRole('checkbox', { name: 'Daily Backtesting' })).toBeDisabled()
+    expect(within(card).getByText('Older than the last 7 days: read-only.')).toBeInTheDocument()
+  })
+
+  it('disables Next week on the current week', async () => {
+    renderHistory(fakeApi())
+    fireEvent.click(screen.getByText('Week'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next week' })).toBeDisabled())
+  })
+
+  it('opens the view named in the URL', async () => {
+    window.history.pushState({}, '', '/rituals?view=year')
+    const api = fakeApi()
+    renderHistory(api)
+
+    expect(await screen.findByRole('heading', { name: '2026' })).toBeInTheDocument()
+    expect(api.getYear).toHaveBeenCalledWith(2026)
+    expect(await screen.findByRole('button', { name: 'Open November 2026' })).toBeInTheDocument()
+    window.history.pushState({}, '', '/')
+  })
+
+  it('shows the year as a heatmap with one square per day', async () => {
+    renderHistory(fakeApi())
+    await screen.findByText('Market days so far')
+
+    fireEvent.click(screen.getByText('Year'))
+    expect(await screen.findByRole('button', { name: 'Open March 2026' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /^2026-\d{2}-\d{2}: / })).toHaveLength(365)
+    expect(screen.getByRole('button', { name: '2026-12-01: 0 of 6 daily rituals' })).toBeDisabled()
+  })
+
+  it('opens a day from the year heatmap', async () => {
+    renderHistory(fakeApi())
+    await screen.findByText('Market days so far')
+
+    fireEvent.click(screen.getByText('Year'))
+    fireEvent.click(await screen.findByRole('button', { name: '2026-11-17: 6 of 6 daily rituals' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Tuesday, 17 November 2026')).toBeInTheDocument()
+  })
+
+  it('opens a month from its name in the year view', async () => {
+    renderHistory(fakeApi())
+    await screen.findByText('Market days so far')
+
+    fireEvent.click(screen.getByText('Year'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open October 2026' }))
+
+    expect(await screen.findByRole('heading', { name: 'October 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Month' })).toBeChecked()
+  })
+
+  it('returns to the current month from another month with Today', async () => {
+    renderHistory(fakeApi())
+    await screen.findByText('Market days so far')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    expect(await screen.findByRole('heading', { name: 'October 2026' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next month' })).toBeEnabled())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+    expect(await screen.findByRole('heading', { name: 'November 2026' })).toBeInTheDocument()
   })
 
   it('never lets a future day be opened', async () => {
@@ -153,7 +327,17 @@ describe('HistoryPage', () => {
 })
 
 describe('cellStatus', () => {
-  const base: MonthDay = { date: '2026-11-17', marketDay: true, future: false, dailyTotal: 6, dailyDone: 0, onTrack: false, full: false }
+  const base: MonthDay = {
+    date: '2026-11-17',
+    marketDay: true,
+    future: false,
+    tracked: true,
+    editable: true,
+    dailyTotal: 6,
+    dailyDone: 0,
+    onTrack: false,
+    full: false,
+  }
 
   it('classifies a day by its streak progress', () => {
     expect(cellStatus({ ...base, full: true, onTrack: true, dailyDone: 6 })).toBe('full')
