@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import App from './App'
@@ -12,6 +12,22 @@ function memoryStorage() {
     setItem: (key: string, value: string) => void items.set(key, value),
   }
 }
+
+describe('App navigation', () => {
+  it('names the daily screen "Rituals" in the side menu', () => {
+    const api = createLocalDojoApi(memoryStorage(), () => new Date(2026, 10, 23, 9, 0))
+    window.history.pushState({}, '', '/dojo')
+    render(
+      <AppProviders api={api}>
+        <App />
+      </AppProviders>,
+    )
+
+    const menu = screen.getByRole('menu', { name: 'Primary' })
+    expect(within(menu).getByText('Rituals')).toBeInTheDocument()
+    expect(within(menu).queryByText('Daily Dojo')).not.toBeInTheDocument()
+  })
+})
 
 describe('App header', () => {
   it('opens ritual settings from the profile menu at the right of the header', async () => {
