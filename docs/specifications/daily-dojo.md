@@ -22,7 +22,7 @@ Build the daily ASTA rituals into a habit by recording them quickly, showing pro
 | preparation | Market preparation, execution planning, money management | 10 | Daily |
 | buddy_connect | Accountability buddy connect | 15 | Daily |
 | opportunity_hunting | Opportunity hunting: Nifty sectors vs stocks | 60 | Weekend (Sat/Sun) |
-| log_audit | Trade log update and SWOT review | 60 | Monthly (2 days) |
+| log_audit | Trade log update and SWOT review | 60 | Monthly (last 2 market days of the month) |
 
 Daily total: 135 minutes.
 
@@ -33,6 +33,7 @@ Daily total: 135 minutes.
 - **Sanskar line:** one Code of Conduct line per day, rotating in order, the same for the whole day.
 - A check-in can be toggled on the same day; past days are read-only.
 - Weekend and monthly rituals appear only on their cadence days and never affect the daily streak.
+- The monthly review (`log_audit`) appears on the last two market days of each month. Market days are weekdays minus holidays; until a holiday list is configured, weekdays only.
 
 ## Failure behaviour
 
