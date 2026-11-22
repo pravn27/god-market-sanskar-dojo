@@ -105,6 +105,15 @@ export interface MonthView {
   }
 }
 
+/** Market-day totals for one month, for the growth chart. */
+export interface GrowthMonth {
+  /** `YYYY-MM` */
+  month: string
+  marketDays: number
+  onTrackDays: number
+  fullDays: number
+}
+
 /**
  * Contract shared by the browser-storage implementation and the `/api/v1` backend.
  * Pages depend only on this interface.
@@ -113,6 +122,7 @@ export interface DojoApi {
   today(): IsoDate
   getDojoDay(date: IsoDate): Promise<DojoDay>
   getMonth(month: string): Promise<MonthView>
+  getGrowth(): Promise<GrowthMonth[]>
   toggleRitual(date: IsoDate, ritualId: string): Promise<DojoDay>
   listRituals(date: IsoDate): Promise<RitualDefinition[]>
   createRitual(input: RitualInput): Promise<RitualDefinition>

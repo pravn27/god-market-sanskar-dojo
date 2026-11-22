@@ -6,3 +6,8 @@ export function useMonthHistory(month: string) {
   const api = useDojoApi()
   return useQuery({ queryKey: ['month', month], queryFn: () => api.getMonth(month) })
 }
+
+export function useGrowth() {
+  const api = useDojoApi()
+  return useQuery({ queryKey: ['growth'], queryFn: () => api.getGrowth() })
+}

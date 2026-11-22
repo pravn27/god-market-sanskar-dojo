@@ -55,6 +55,10 @@ export function createLocalDojoApi(
       throw new DojoApiError(501, 'History needs the local backend.')
     },
 
+    async getGrowth() {
+      throw new DojoApiError(501, 'Growth needs the local backend.')
+    },
+
     async toggleRitual(date: IsoDate, ritualId: string) {
       const current = today()
       if (date > current) throw new DojoApiError(400, 'Check-ins for a future date are not allowed.')

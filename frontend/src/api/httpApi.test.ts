@@ -70,6 +70,23 @@ describe('createHttpDojoApi', () => {
     expect(view.summary).toEqual({ marketDays: 1, onTrackDays: 1, fullDays: 0 })
   })
 
+  it('maps the growth response for the chart', async () => {
+    const growthBody = {
+      months: [
+        { month: '2026-01', market_days: 21, on_track_days: 19, full_days: 4 },
+        { month: '2026-02', market_days: 20, on_track_days: 0, full_days: 0 },
+      ],
+    }
+    const fetchImpl = vi.fn(async () => jsonResponse(growthBody))
+    const months = await api(fetchImpl as unknown as typeof fetch).getGrowth()
+
+    expect(fetchImpl).toHaveBeenCalledWith('/api/v1/profiles/praveen/growth', expect.anything())
+    expect(months).toEqual([
+      { month: '2026-01', marketDays: 21, onTrackDays: 19, fullDays: 4 },
+      { month: '2026-02', marketDays: 20, onTrackDays: 0, fullDays: 0 },
+    ])
+  })
+
   it('maps the day response into the shape the pages already use', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse(monday))
     const day = await api(fetchImpl as unknown as typeof fetch).getDojoDay('2026-11-23')

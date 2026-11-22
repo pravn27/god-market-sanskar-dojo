@@ -21,6 +21,7 @@ function fakeApi(): DojoApi {
     today: () => TODAY,
     getDojoDay: vi.fn(async (date: string) => buildDojoDay(date, TODAY, {})),
     getMonth: vi.fn(async () => emptyMonth),
+    getGrowth: vi.fn(async () => []),
   } as unknown as DojoApi
 }
 

@@ -129,7 +129,6 @@ body { background: var(--app-bg); }
 }
 .history-cell:disabled { cursor: default; opacity: 0.35; }
 .history-cell--blank { background: transparent; border-color: transparent; }
-.history-cell--weekend { background: transparent; }
 .history-cell--full { background: rgba(82, 196, 26, 0.18); border-color: rgba(82, 196, 26, 0.55); }
 .history-cell--on-track { background: rgba(24, 144, 255, 0.14); border-color: rgba(24, 144, 255, 0.5); }
 .history-cell--short { background: rgba(250, 140, 22, 0.14); border-color: rgba(250, 140, 22, 0.5); }

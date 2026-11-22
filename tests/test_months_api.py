@@ -111,6 +111,16 @@ def test_on_track_and_full_days_are_counted_for_elapsed_market_days_only(app, cl
     assert body["summary"] == {"market_days": 15, "on_track_days": 2, "full_days": 1}
 
 
+def test_a_weekend_day_gets_the_same_colour_but_is_not_counted(app, client):
+    log_history(app, "2026-11-14", DAILY)  # Saturday: every daily ritual done
+    body = month(client, "2026-11")
+    saturday = by_date(body, "2026-11-14")
+    assert saturday["market_day"] is False
+    assert saturday["full"] is True
+    assert saturday["on_track"] is True
+    assert body["summary"] == {"market_days": 15, "on_track_days": 0, "full_days": 0}
+
+
 def test_a_day_with_too_few_dailies_is_not_on_track(app, client):
     log_history(app, "2026-11-16", DAILY[:3])
     body = month(client, "2026-11")
@@ -154,6 +164,34 @@ def test_a_slash_in_the_month_does_not_match_the_route(client):
 
 def test_unknown_profile_is_not_found(client):
     assert client.get("/api/v1/profiles/nobody/months/2026-11").status_code == 404
+
+
+def growth(client):
+    response = client.get(f"{BASE}/growth")
+    assert response.status_code == 200, response.text
+    return response.json()["months"]
+
+
+def test_growth_lists_every_month_from_the_tracker_start_to_now(client):
+    months = growth(client)
+    assert [m["month"] for m in months] == [f"2026-{n:02d}" for n in range(1, 12)]
+
+
+def test_growth_counts_on_track_days_per_month(app, client):
+    log_history(app, "2026-11-16", DAILY[:4])  # on track
+    log_history(app, "2026-11-17", DAILY)  # on track and full
+    by_month = {m["month"]: m for m in growth(client)}
+
+    assert by_month["2026-11"] == {"month": "2026-11", "market_days": 15, "on_track_days": 2, "full_days": 1}
+    # October is complete: 22 weekdays in October 2026, none ticked.
+    assert by_month["2026-10"] == {"month": "2026-10", "market_days": 22, "on_track_days": 0, "full_days": 0}
+
+
+def test_growth_never_counts_the_future(app, client, clock):
+    clock.move_to("2026-11-03")
+    log_history(app, "2026-11-25", DAILY)  # ticked in advance, never counted
+    november = next(m for m in growth(client) if m["month"] == "2026-11")
+    assert november["on_track_days"] == 0
 
 
 def test_a_ritual_retired_later_still_counts_on_its_past_days(app, client, clock):

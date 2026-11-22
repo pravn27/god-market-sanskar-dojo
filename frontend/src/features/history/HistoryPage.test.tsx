@@ -27,8 +27,8 @@ function buildMonth(month: string, doneFor: (date: IsoDate) => number): MonthVie
       future,
       dailyTotal: 6,
       dailyDone,
-      onTrack: !future && marketDay && dailyDone >= 4,
-      full: !future && marketDay && dailyDone === 6,
+      onTrack: !future && dailyDone >= 4,
+      full: !future && dailyDone === 6,
     })
   }
   const elapsed = days.filter((d) => d.marketDay && !d.future)
@@ -54,6 +54,7 @@ function fakeApi(overrides: Partial<DojoApi> = {}) {
     getMonth: vi.fn(async (month: string) => buildMonth(month, doneFor)),
     getDojoDay: vi.fn(async (date: IsoDate) => buildDojoDay(date, TODAY, logs)),
     toggleRitual: vi.fn(async (date: IsoDate) => buildDojoDay(date, TODAY, {})),
+    getGrowth: vi.fn(async () => [{ month: '2026-11', marketDays: 15, onTrackDays: 2, fullDays: 1 }]),
     ...overrides,
   } as unknown as DojoApi
   return api
@@ -160,8 +161,13 @@ describe('cellStatus', () => {
     expect(cellStatus({ ...base, dailyDone: 3 })).toBe('short')
   })
 
-  it('does not colour weekends or future days', () => {
-    expect(cellStatus({ ...base, marketDay: false, dailyDone: 6 })).toBe('weekend')
+  it('colours a non-market day by the same rules as a market day', () => {
+    expect(cellStatus({ ...base, marketDay: false, full: true, onTrack: true, dailyDone: 6 })).toBe('full')
+    expect(cellStatus({ ...base, marketDay: false, onTrack: true, dailyDone: 4 })).toBe('on-track')
+    expect(cellStatus({ ...base, marketDay: false, dailyDone: 1 })).toBe('short')
+  })
+
+  it('keeps future days neutral', () => {
     expect(cellStatus({ ...base, future: true })).toBe('future')
   })
 })

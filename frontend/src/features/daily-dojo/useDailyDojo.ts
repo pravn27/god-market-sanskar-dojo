@@ -16,6 +16,7 @@ export function useToggleRitual(date: IsoDate) {
     onSuccess: (day) => {
       queryClient.setQueryData(['dojo-day', date], day)
       void queryClient.invalidateQueries({ queryKey: ['month'] })
+      void queryClient.invalidateQueries({ queryKey: ['growth'] })
     },
   })
 }

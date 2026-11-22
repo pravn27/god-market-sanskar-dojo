@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useDojoApi } from '../../api/DojoApiContext'
 import { dayOfWeek, EDIT_WINDOW_DAYS, type IsoDate } from '../../domain/dates'
 import { useDojoDay, useToggleRitual } from '../daily-dojo/useDailyDojo'
+import GrowthPanel from './GrowthPanel'
 import { cellStatus, type CellStatus } from './monthGrid'
 import { useMonthHistory } from './useMonthHistory'
 
@@ -15,7 +16,6 @@ const LEGEND: { status: CellStatus; label: string }[] = [
   { status: 'full', label: 'Every daily ritual done' },
   { status: 'on-track', label: 'Streak minimum met' },
   { status: 'short', label: 'Below streak minimum' },
-  { status: 'weekend', label: 'Weekend or no market' },
 ]
 
 const WEEKDAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -154,6 +154,8 @@ export default function HistoryPage() {
           </Space>
         </>
       )}
+
+      <GrowthPanel />
 
       <Drawer
         open={selected !== null}

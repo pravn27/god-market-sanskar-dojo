@@ -34,6 +34,18 @@ def _shift(year: int, month: int, delta: int) -> tuple[int, int]:
     return index // 12, index % 12 + 1
 
 
+def growth_view(conn: sqlite3.Connection, profile_id: int, today: date) -> dict[str, Any]:
+    """One summary per month, from the tracker start to the current month."""
+    start_year, start_month = (int(part) for part in TRACKER_START[:7].split("-"))
+    year, number = start_year, start_month
+    months: list[dict[str, Any]] = []
+    while (year, number) <= (today.year, today.month):
+        view = month_view(conn, profile_id, year, number, today)
+        months.append({"month": view["month"], **view["summary"]})
+        year, number = _shift(year, number, 1)
+    return {"months": months}
+
+
 def month_view(conn: sqlite3.Connection, profile_id: int, year: int, month: int, today: date) -> dict[str, Any]:
     last = calendar.monthrange(year, month)[1]
     rows: list[dict[str, Any]] = []
@@ -47,13 +59,13 @@ def month_view(conn: sqlite3.Connection, profile_id: int, year: int, month: int,
         daily_done = days.daily_done_count(shown, done)
         market = days.is_market_day(day)
         future = day > today
+        # Every past day gets its colour, weekends included. The summary counts market days only.
+        on_track = not future and daily_done >= days.STREAK_MIN_DAILY_RITUALS
+        full = not future and daily_total > 0 and daily_done == daily_total
         counted = market and not future
-
-        on_track = counted and daily_done >= days.STREAK_MIN_DAILY_RITUALS
-        full = counted and daily_total > 0 and daily_done == daily_total
         market_days += int(counted)
-        on_track_days += int(on_track)
-        full_days += int(full)
+        on_track_days += int(on_track and counted)
+        full_days += int(full and counted)
 
         rows.append(
             {

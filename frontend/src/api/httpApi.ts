@@ -5,6 +5,7 @@ import type { RitualCadence } from '../domain/rituals'
 import {
   DojoApiError,
   type DojoApi,
+  type GrowthMonth,
   type LogTradePlanInput,
   type MonthView,
   type RitualDefinition,
@@ -116,6 +117,20 @@ interface ApiMonth {
   summary: { market_days: number; on_track_days: number; full_days: number }
 }
 
+/** Shape returned by `GET /api/v1/profiles/{slug}/growth`. */
+interface ApiGrowth {
+  months: { month: string; market_days: number; on_track_days: number; full_days: number }[]
+}
+
+function toGrowth(body: ApiGrowth): GrowthMonth[] {
+  return body.months.map((m) => ({
+    month: m.month,
+    marketDays: m.market_days,
+    onTrackDays: m.on_track_days,
+    fullDays: m.full_days,
+  }))
+}
+
 function toMonthView(body: ApiMonth): MonthView {
   return {
     month: body.month,
@@ -221,6 +236,10 @@ export function createHttpDojoApi({
 
     async getMonth(month: string) {
       return toMonthView(await send<ApiMonth>(`/months/${encodeURIComponent(month)}`))
+    },
+
+    async getGrowth() {
+      return toGrowth(await send<ApiGrowth>('/growth'))
     },
 
     async toggleRitual(date: IsoDate, ritualId: string) {
