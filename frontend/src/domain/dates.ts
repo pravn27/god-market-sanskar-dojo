@@ -30,3 +30,18 @@ export function isWeekend(iso: IsoDate): boolean {
   const day = dayOfWeek(iso)
   return day === 0 || day === 6
 }
+
+/**
+ * True when `iso` is one of the last two market days of its month.
+ * Weekdays only until a holiday list is configured.
+ */
+export function isLastTwoMarketDaysOfMonth(iso: IsoDate, holidays: ReadonlySet<IsoDate> = new Set()): boolean {
+  const isMarket = (d: IsoDate) => !isWeekend(d) && !holidays.has(d)
+  if (!isMarket(iso)) return false
+  const month = iso.slice(0, 7)
+  let marketDaysLeft = 1
+  for (let d = addDays(iso, 1); d.slice(0, 7) === month; d = addDays(d, 1)) {
+    if (isMarket(d)) marketDaysLeft += 1
+  }
+  return marketDaysLeft <= 2
+}

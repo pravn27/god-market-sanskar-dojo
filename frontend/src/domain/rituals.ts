@@ -1,6 +1,6 @@
-import { isWeekend, type IsoDate } from './dates'
+import { isLastTwoMarketDaysOfMonth, isWeekend, type IsoDate } from './dates'
 
-export type RitualCadence = 'daily' | 'weekend'
+export type RitualCadence = 'daily' | 'weekend' | 'monthly'
 
 export interface RitualDef {
   id: string
@@ -18,12 +18,18 @@ export const RITUALS: RitualDef[] = [
   { id: 'preparation', label: 'Market preparation, execution planning, money management', minutes: 10, cadence: 'daily' },
   { id: 'buddy_connect', label: 'Accountability buddy connect', minutes: 15, cadence: 'daily' },
   { id: 'opportunity_hunting', label: 'Opportunity hunting: Nifty sectors vs stocks', minutes: 60, cadence: 'weekend' },
+  { id: 'log_audit', label: 'Trade log update and SWOT review', minutes: 60, cadence: 'monthly' },
 ]
 
 export const DAILY_RITUAL_IDS = new Set(RITUALS.filter((r) => r.cadence === 'daily').map((r) => r.id))
 
 export function ritualsFor(date: IsoDate): RitualDef[] {
-  return RITUALS.filter((r) => r.cadence === 'daily' || (r.cadence === 'weekend' && isWeekend(date)))
+  return RITUALS.filter(
+    (r) =>
+      r.cadence === 'daily' ||
+      (r.cadence === 'weekend' && isWeekend(date)) ||
+      (r.cadence === 'monthly' && isLastTwoMarketDaysOfMonth(date)),
+  )
 }
 
 export function findRitual(id: string): RitualDef | undefined {

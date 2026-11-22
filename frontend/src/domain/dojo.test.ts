@@ -65,4 +65,19 @@ describe('ritualsFor', () => {
     expect(ritualsFor('2026-11-21').map((r) => r.id)).toContain('opportunity_hunting')
     expect(ritualsFor(MON)).toHaveLength(6)
   })
+
+  it('shows the monthly review on the last two market days of the month', () => {
+    // November 2026: 27 is Friday, 28 and 29 are weekend, 30 is Monday.
+    expect(ritualsFor('2026-11-26').map((r) => r.id)).not.toContain('log_audit')
+    expect(ritualsFor('2026-11-27').map((r) => r.id)).toContain('log_audit')
+    expect(ritualsFor('2026-11-30').map((r) => r.id)).toContain('log_audit')
+    // October 2026 ends on a Saturday: last two market days are 29 and 30.
+    expect(ritualsFor('2026-10-28').map((r) => r.id)).not.toContain('log_audit')
+    expect(ritualsFor('2026-10-29').map((r) => r.id)).toContain('log_audit')
+    expect(ritualsFor('2026-10-30').map((r) => r.id)).toContain('log_audit')
+  })
+
+  it('does not count the monthly review as a daily ritual', () => {
+    expect(ritualsFor('2026-11-27').filter((r) => r.cadence === 'daily')).toHaveLength(6)
+  })
 })
