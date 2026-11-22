@@ -20,7 +20,7 @@ export interface ScreenDef {
 
 export const SCREENS: ScreenDef[] = [
   { path: '/dashboard', label: 'Dashboard', icon: <DashboardOutlined />, epic: 'E-12', summary: 'Readiness, KPIs, today, trends, and recent trades at a glance.' },
-  { path: '/dojo', label: 'Rituals', icon: <FireOutlined />, epic: 'E-02', summary: 'Daily rituals, sanskar oath, mood level, and streak.' },
+  { path: '/rituals', label: 'Rituals', icon: <FireOutlined />, epic: 'E-02', summary: 'Daily rituals, sanskar oath, mood level, and streak.' },
   { path: '/readiness', label: 'Readiness', icon: <CheckSquareOutlined />, epic: 'E-03', summary: 'Market Overview checklist and the readiness score that unlocks trading.' },
   { path: '/trade-gate', label: 'Trade Gate', icon: <SafetyOutlined />, epic: 'E-04', summary: 'Plan, size, and accept the loss before any trade.' },
   { path: '/audit', label: 'Audit + Scorecard', icon: <AuditOutlined />, epic: 'E-05', summary: 'Grade each trade and see the 3:30 PM discipline scorecard.' },

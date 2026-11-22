@@ -43,7 +43,7 @@ The script:
 4. Starts the backend on port 8765 and waits until its health check answers.
 5. Starts the frontend on port 5173.
 
-When it is ready, open **http://localhost:5173/dojo**.
+When it is ready, open **http://localhost:5173/rituals**. The old `/dojo` address redirects there.
 
 Stop both services with **Ctrl-C** in the terminal. The script stops the backend when the frontend stops.
 

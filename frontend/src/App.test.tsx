@@ -14,9 +14,22 @@ function memoryStorage() {
 }
 
 describe('App navigation', () => {
-  it('names the daily screen "Rituals" in the side menu', () => {
+  it('serves the screen at /rituals and sends the old /dojo address there', async () => {
     const api = createLocalDojoApi(memoryStorage(), () => new Date(2026, 10, 23, 9, 0))
     window.history.pushState({}, '', '/dojo')
+    render(
+      <AppProviders api={api}>
+        <App />
+      </AppProviders>,
+    )
+
+    expect(await screen.findByText('Today\'s sanskar · trains', { exact: false })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/rituals')
+  })
+
+  it('names the daily screen "Rituals" in the side menu', () => {
+    const api = createLocalDojoApi(memoryStorage(), () => new Date(2026, 10, 23, 9, 0))
+    window.history.pushState({}, '', '/rituals')
     render(
       <AppProviders api={api}>
         <App />
@@ -32,7 +45,7 @@ describe('App navigation', () => {
 describe('App header', () => {
   it('opens ritual settings from the profile menu at the right of the header', async () => {
     const api = createLocalDojoApi(memoryStorage(), () => new Date(2026, 10, 23, 9, 0))
-    window.history.pushState({}, '', '/dojo')
+    window.history.pushState({}, '', '/rituals')
     render(
       <AppProviders api={api}>
         <App />

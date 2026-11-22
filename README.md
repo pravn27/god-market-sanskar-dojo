@@ -28,6 +28,6 @@ Prerequisites: [uv](https://docs.astral.sh/uv/) and Node.js 24. Then, from the r
 scripts/dev.sh           # installs what is missing, starts backend and frontend
 ```
 
-Open **http://localhost:5173/dojo**. Press Ctrl-C to stop both. Run all tests with `scripts/dev.sh --test`.
+Open **http://localhost:5173/rituals**. Press Ctrl-C to stop both. Run all tests with `scripts/dev.sh --test`.
 
 The backend runs on `127.0.0.1:8765` and stores everything in `data/sanskar-dojo.sqlite3`. The full guide covers prerequisites, starting the services by hand, configuration, backups, resetting the database, logs and troubleshooting: [local setup and running](docs/operations/local-setup-and-run.md).

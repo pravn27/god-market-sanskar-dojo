@@ -87,7 +87,7 @@ curl -fsS "http://127.0.0.1:$API_PORT/api/v1/health" >/dev/null 2>&1 \
   || die "the backend did not answer within 30 seconds. Log: $API_LOG"
 say "backend is up"
 
-say "starting frontend on http://localhost:$WEB_PORT (open http://localhost:$WEB_PORT/dojo)"
+say "starting frontend on http://localhost:$WEB_PORT (open http://localhost:$WEB_PORT/rituals)"
 (cd frontend && exec ./node_modules/.bin/vite --port "$WEB_PORT" --strictPort) &
 WEB_PID=$!
 wait "$WEB_PID"

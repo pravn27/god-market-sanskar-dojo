@@ -12,7 +12,7 @@ import { useUiStore } from './state/uiStore'
 
 const { Header, Sider, Content, Footer } = Layout
 
-const BUILT_PATHS = new Set(['/dojo', '/trade-gate'])
+const BUILT_PATHS = new Set(['/rituals', '/trade-gate'])
 
 export default function App() {
   const location = useLocation()
@@ -26,7 +26,7 @@ export default function App() {
   return (
     <Layout className="app-shell">
       <Header className="app-header">
-        <button className="brand" type="button" onClick={() => navigate('/dojo')} aria-label="Sanskar Dojo home">
+        <button className="brand" type="button" onClick={() => navigate('/rituals')} aria-label="Sanskar Dojo home">
           <FireOutlined className="brand-icon" aria-hidden="true" />
           <Typography.Text strong className="brand-text">
             God Market <span className="brand-accent">Sanskar Dojo</span>
@@ -72,12 +72,14 @@ export default function App() {
         <Layout>
           <Content className="app-content">
             <Routes>
-              <Route path="/dojo" element={<DailyDojoPage />} />
+              <Route path="/rituals" element={<DailyDojoPage />} />
+              {/* Old address from before the rename, kept so bookmarks still open the page. */}
+              <Route path="/dojo" element={<Navigate to="/rituals" replace />} />
               <Route path="/trade-gate" element={<TradeGatePage />} />
               {SCREENS.filter((screen) => !BUILT_PATHS.has(screen.path)).map((screen) => (
                 <Route key={screen.path} path={screen.path} element={<PlannedScreen screen={screen} />} />
               ))}
-              <Route path="*" element={<Navigate to="/dojo" replace />} />
+              <Route path="*" element={<Navigate to="/rituals" replace />} />
             </Routes>
           </Content>
           <Footer className="app-footer">ASTA process over profit · local practice</Footer>

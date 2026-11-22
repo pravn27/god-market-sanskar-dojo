@@ -210,7 +210,7 @@ The audit records one reason per exit. The list extends the one in `virtues-meas
 | --- | --- | --- |
 | Trade Gate | `/trade-gate` | Setup, entry checklist, sizing, exit plan, commitment, save. The main home for these rules. |
 | Audit + Scorecard | `/audit` | Records the exit reason for each trade and grades it against the plan. |
-| Daily Dojo | `/dojo` | No rule input. At most a read-only link to these rules. |
+| Rituals | `/rituals` | No rule input. At most a read-only link to these rules. |
 | Readiness, Dashboard, Character | — | Unchanged by this spec. |
 
 ### Trade Gate order, top to bottom
