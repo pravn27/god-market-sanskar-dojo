@@ -115,3 +115,144 @@ describe('createHttpDojoApi', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 })
+
+const apiRitual = (overrides: Record<string, unknown> = {}) => ({
+  ritual_key: 'gym',
+  label: 'Gym',
+  minutes: 40,
+  cadence: 'weekdays',
+  weekdays: [1, 3, 5],
+  monthly_last_market_days: null,
+  counts_for_streak: false,
+  sort_order: 3,
+  valid_from: '2026-01-01',
+  valid_to: null,
+  ...overrides,
+})
+
+describe('ritual definitions over HTTP', () => {
+  it('lists the rituals that apply on a date, in order, with schedules mapped', async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        profile: 'praveen',
+        as_of: '2026-11-23',
+        rituals: [
+          apiRitual({ ritual_key: 'log_audit', label: 'Trade log update and SWOT review', cadence: 'monthly_last_market_days', weekdays: null, monthly_last_market_days: 2, sort_order: 1 }),
+          apiRitual({ ritual_key: 'market_overview', label: 'Daily Rituals on Market Overview', cadence: 'daily', weekdays: null, counts_for_streak: true, sort_order: 2 }),
+          apiRitual({ ritual_key: 'opportunity_hunting', label: 'Opportunity hunting', cadence: 'weekend', weekdays: null, sort_order: 3 }),
+          apiRitual(),
+        ],
+      }),
+    )
+
+    const rituals = await api(fetchImpl as unknown as typeof fetch).listRituals('2026-11-23')
+
+    expect(fetchImpl).toHaveBeenCalledWith('/api/v1/profiles/praveen/rituals?as_of=2026-11-23', expect.anything())
+    expect(rituals.map((r) => [r.key, r.schedule])).toEqual([
+      ['log_audit', 'monthly'],
+      ['market_overview', 'daily'],
+      ['opportunity_hunting', 'weekend'],
+      ['gym', 'weekdays'],
+    ])
+    expect(rituals[0]).toMatchObject({ monthlyLastMarketDays: 2, weekdays: null })
+    expect(rituals[3]).toMatchObject({ weekdays: [1, 3, 5], countsForStreak: false, validFrom: '2026-01-01', validTo: null })
+  })
+
+  it('creates a ritual, sending weekdays only for the weekdays schedule', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(apiRitual({ ritual_key: 'chart_review', label: 'Chart review', cadence: 'daily', weekdays: null, counts_for_streak: true, minutes: 20 }), 201))
+
+    const created = await api(fetchImpl as unknown as typeof fetch).createRitual({
+      label: 'Chart review',
+      minutes: 20,
+      schedule: 'daily',
+      weekdays: [1, 3],
+      monthlyLastMarketDays: 2,
+      countsForStreak: true,
+    })
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/v1/profiles/praveen/rituals')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({
+      label: 'Chart review',
+      minutes: 20,
+      cadence: 'daily',
+      weekdays: null,
+      monthly_last_market_days: null,
+      counts_for_streak: true,
+    })
+    expect(created).toMatchObject({ key: 'chart_review', schedule: 'daily' })
+  })
+
+  it('sends the monthly count for the monthly schedule', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(apiRitual({ cadence: 'monthly_last_market_days', weekdays: null, monthly_last_market_days: 3 }), 201))
+
+    await api(fetchImpl as unknown as typeof fetch).createRitual({
+      label: 'Gym',
+      minutes: 40,
+      schedule: 'monthly',
+      weekdays: [1],
+      monthlyLastMarketDays: 3,
+      countsForStreak: false,
+    })
+
+    const body = JSON.parse((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)
+    expect(body).toMatchObject({ cadence: 'monthly_last_market_days', weekdays: null, monthly_last_market_days: 3 })
+  })
+
+  it('updates a ritual with PUT', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(apiRitual({ minutes: 50 })))
+
+    const updated = await api(fetchImpl as unknown as typeof fetch).updateRitual('gym', {
+      label: 'Gym',
+      minutes: 50,
+      schedule: 'weekdays',
+      weekdays: [1, 3, 5],
+      monthlyLastMarketDays: null,
+      countsForStreak: false,
+    })
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/v1/profiles/praveen/rituals/gym')
+    expect(init.method).toBe('PUT')
+    expect(updated.minutes).toBe(50)
+  })
+
+  it('retires a ritual with DELETE', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ ritual_key: 'gym', retired_from: '2026-11-23' }))
+
+    await api(fetchImpl as unknown as typeof fetch).retireRitual('gym')
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/v1/profiles/praveen/rituals/gym')
+    expect(init.method).toBe('DELETE')
+  })
+
+  it('posts the new order and returns the reordered rituals', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ profile: 'praveen', rituals: [apiRitual({ ritual_key: 'a', sort_order: 1 }), apiRitual({ ritual_key: 'gym', sort_order: 2 })] }))
+
+    const rituals = await api(fetchImpl as unknown as typeof fetch).reorderRituals(['a', 'gym'])
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/v1/profiles/praveen/rituals/reorder')
+    expect(JSON.parse(init.body as string)).toEqual({ keys: ['a', 'gym'] })
+    expect(rituals.map((r) => r.key)).toEqual(['a', 'gym'])
+  })
+
+  it('shows the validation message from a rejected create', async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ detail: [{ msg: 'Value error, the weekdays cadence needs at least one weekday' }] }, 422),
+    )
+
+    await expect(
+      api(fetchImpl as unknown as typeof fetch).createRitual({
+        label: 'Gym',
+        minutes: 40,
+        schedule: 'weekdays',
+        weekdays: [],
+        monthlyLastMarketDays: null,
+        countsForStreak: false,
+      }),
+    ).rejects.toMatchObject({ status: 422, message: 'Value error, the weekdays cadence needs at least one weekday' })
+  })
+})

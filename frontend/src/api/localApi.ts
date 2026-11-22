@@ -67,6 +67,23 @@ export function createLocalDojoApi(
       return buildDojoDay(date, current, data.ritualLogs)
     },
 
+    // Ritual definitions live only in the database, so browser storage cannot manage them.
+    async listRituals() {
+      throw new DojoApiError(501, 'Ritual settings need the local backend.')
+    },
+    async createRitual() {
+      throw new DojoApiError(501, 'Ritual settings need the local backend.')
+    },
+    async updateRitual() {
+      throw new DojoApiError(501, 'Ritual settings need the local backend.')
+    },
+    async retireRitual() {
+      throw new DojoApiError(501, 'Ritual settings need the local backend.')
+    },
+    async reorderRituals() {
+      throw new DojoApiError(501, 'Ritual settings need the local backend.')
+    },
+
     async getTradeGateStatus() {
       return gateStatus(read())
     },

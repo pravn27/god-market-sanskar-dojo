@@ -28,6 +28,7 @@ body { background: var(--app-bg); }
 .brand .brand-text { font-size: 18px; white-space: nowrap; }
 .brand-accent { color: #1890ff; }
 .theme-toggle-on { color: #faad14; }
+.header-actions { align-items: center; display: flex; gap: 4px; }
 .app-sider { border-inline-end: 1px solid var(--surface-border); }
 .app-sider .ant-menu { border-inline-end: 0 !important; }
 .app-content { margin: 0 auto; max-width: 1100px; padding: 24px; width: 100%; }
