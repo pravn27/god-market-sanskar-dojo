@@ -1,6 +1,7 @@
 import { Alert, Card, Checkbox, Col, Progress, Row, Skeleton, Space, Statistic, Tag, Typography } from 'antd'
 
 import { useDojoApi } from '../../api/DojoApiContext'
+import { formatFullDate } from '../../domain/dates'
 import { useDojoDay, useToggleRitual } from './useDailyDojo'
 
 export default function DailyDojoPage() {
@@ -18,6 +19,9 @@ export default function DailyDojoPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Typography.Title level={4} style={{ margin: 0 }} aria-label="Today's date">
+        {formatFullDate(today)}
+      </Typography.Title>
       <Card className="dojo-hero">
         <Typography.Text type="secondary">Today's sanskar · trains {day.sanskar.virtue}</Typography.Text>
         <Typography.Title level={4} style={{ margin: '4px 0 0' }}>

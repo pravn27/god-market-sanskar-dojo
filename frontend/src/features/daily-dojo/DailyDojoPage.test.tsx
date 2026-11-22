@@ -37,6 +37,11 @@ describe('DailyDojoPage', () => {
     expect(screen.queryByText('Weekend quest')).not.toBeInTheDocument()
   })
 
+  it('shows the full date of today above the sanskar', async () => {
+    renderApp(new Date(2026, 10, 18, 9, 0))
+    expect(await screen.findByLabelText("Today's date")).toHaveTextContent('Wednesday, 18 November 2026')
+  })
+
   it('shows the weekend quest on Saturday', async () => {
     renderApp(new Date(2026, 10, 21, 9, 0))
     expect(await screen.findByText('Weekend quest')).toBeInTheDocument()

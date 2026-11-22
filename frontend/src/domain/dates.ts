@@ -38,6 +38,18 @@ export function daysSinceEpoch(iso: IsoDate): number {
   return Math.floor(toUtcMs(iso) / 86_400_000)
 }
 
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+/** Full, human-readable date, e.g. "Sunday, 22 November 2026". */
+export function formatFullDate(iso: IsoDate): string {
+  const [year, month, day] = iso.split('-').map(Number)
+  return `${WEEKDAY_NAMES[dayOfWeek(iso)]}, ${day} ${MONTH_NAMES[month - 1]} ${year}`
+}
+
 export function isWeekend(iso: IsoDate): boolean {
   const day = dayOfWeek(iso)
   return day === 0 || day === 6
