@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import type { DojoApi } from './api/client'
 import { DojoApiContext } from './api/DojoApiContext'
+import { createHttpDojoApi } from './api/httpApi'
 import { createLocalDojoApi } from './api/localApi'
 import { useUiStore } from './state/uiStore'
 import { getAppTheme } from './theme'
@@ -14,7 +15,7 @@ export default function AppProviders({ children, api }: { children: ReactNode; a
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } }),
   )
-  const [dojoApi] = useState(() => api ?? createLocalDojoApi())
+  const [dojoApi] = useState(() => api ?? createHttpDojoApi({ tradeGate: createLocalDojoApi() }))
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode

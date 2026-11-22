@@ -14,6 +14,7 @@ export default function DailyDojoPage() {
   const dailyRituals = day.rituals.filter((r) => r.cadence === 'daily')
   const weekendRituals = day.rituals.filter((r) => r.cadence === 'weekend')
   const monthlyRituals = day.rituals.filter((r) => r.cadence === 'monthly')
+  const scheduledRituals = day.rituals.filter((r) => r.cadence === 'weekdays')
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -63,6 +64,23 @@ export default function DailyDojoPage() {
       {weekendRituals.length > 0 && (
         <Card title="Weekend quest">
           {weekendRituals.map((ritual) => (
+            <div className="dojo-ritual-row" key={ritual.id}>
+              <Checkbox
+                checked={ritual.done}
+                disabled={!day.editable || toggle.isPending}
+                onChange={() => toggle.mutate(ritual.id)}
+              >
+                {ritual.label}
+              </Checkbox>
+              <Typography.Text type="secondary">{ritual.minutes} min</Typography.Text>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      {scheduledRituals.length > 0 && (
+        <Card title="Scheduled rituals">
+          {scheduledRituals.map((ritual) => (
             <div className="dojo-ritual-row" key={ritual.id}>
               <Checkbox
                 checked={ritual.done}

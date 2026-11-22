@@ -1,6 +1,6 @@
 import { isLastTwoMarketDaysOfMonth, isWeekend, type IsoDate } from './dates'
 
-export type RitualCadence = 'daily' | 'weekend' | 'monthly'
+export type RitualCadence = 'daily' | 'weekend' | 'monthly' | 'weekdays'
 
 export interface RitualDef {
   id: string
