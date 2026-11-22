@@ -5,42 +5,49 @@ from __future__ import annotations
 import os
 import sqlite3
 import threading
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 
-from . import __version__
+from . import __version__, rituals
 from .db import connect, migrate, schema_version
+from .models import RitualFields, RitualReorder
+from .rituals import DefinitionError
 from .seed import PROFILE_SLUG, seed
 
 MARKET_TZ = ZoneInfo("Asia/Kolkata")
 API_PREFIX = "/api/v1"
 DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "sanskar-dojo.sqlite3"
 
+Clock = Callable[[], datetime]
 
-def now_iso() -> str:
-    return datetime.now(MARKET_TZ).isoformat(timespec="seconds")
+
+def market_now() -> datetime:
+    return datetime.now(MARKET_TZ)
 
 
 def db_path_from_env() -> Path:
     return Path(os.environ.get("SANSKAR_DOJO_DB", DEFAULT_DB_PATH))
 
 
-def create_app(db_path: str | Path | None = None) -> FastAPI:
+def create_app(db_path: str | Path | None = None, clock: Clock | None = None) -> FastAPI:
     path = Path(db_path) if db_path is not None else db_path_from_env()
+    now = clock or market_now
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         conn = connect(path)
         migrate(conn)
-        seed(conn, now_iso())
+        seed(conn, now().isoformat(timespec="seconds"))
         app.state.conn = conn
         app.state.lock = threading.Lock()
         app.state.db_path = path
+        app.state.clock = now
         try:
             yield
         finally:
@@ -48,10 +55,20 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
 
     app = FastAPI(title="Sanskar Dojo API", version=__version__, lifespan=lifespan)
 
+    @app.exception_handler(DefinitionError)
+    async def definition_error(_: Request, exc: DefinitionError) -> JSONResponse:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
     def db(request: Request) -> Iterator[sqlite3.Connection]:
         """Yield the shared connection while holding the lock, one request at a time."""
         with request.app.state.lock:
             yield request.app.state.conn
+
+    def profile_id_for(conn: sqlite3.Connection, slug: str) -> int:
+        row = conn.execute("SELECT id FROM profiles WHERE slug = ?", (slug,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Unknown profile: {slug}")
+        return row["id"]
 
     @app.get(f"{API_PREFIX}/health")
     def health(request: Request, conn: sqlite3.Connection = Depends(db)) -> dict:
@@ -74,31 +91,59 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         as_of: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
         conn: sqlite3.Connection = Depends(db),
     ) -> dict:
-        profile = conn.execute("SELECT id FROM profiles WHERE slug = ?", (slug,)).fetchone()
-        if profile is None:
-            raise HTTPException(status_code=404, detail=f"Unknown profile: {slug}")
+        profile_id = profile_id_for(conn, slug)
         try:
-            day = date.fromisoformat(as_of) if as_of else datetime.now(MARKET_TZ).date()
+            day = date.fromisoformat(as_of) if as_of else now().date()
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=f"Invalid date: {as_of}") from exc
         iso_day = day.isoformat()
-        rows = conn.execute(
-            """
-            SELECT ritual_key, label, minutes, cadence, weekdays, monthly_last_market_days,
-                   counts_for_streak, sort_order
-            FROM ritual_defs
-            WHERE profile_id = ? AND archived = 0
-              AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)
-            ORDER BY sort_order
-            """,
-            (profile["id"], iso_day, iso_day),
-        ).fetchall()
+        rows = rituals.active_on(conn, profile_id, iso_day)
         return {
             "profile": slug,
             "as_of": iso_day,
-            "rituals": [
-                {**dict(row), "counts_for_streak": bool(row["counts_for_streak"])} for row in rows
-            ],
+            "rituals": [rituals.to_public(row) for row in rows],
         }
+
+    @app.post(f"{API_PREFIX}/profiles/{{slug}}/rituals", status_code=201)
+    def create_ritual(
+        slug: str,
+        body: RitualFields,
+        conn: sqlite3.Connection = Depends(db),
+    ) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            return rituals.create(conn, profile_id, body, now())
+
+    @app.put(f"{API_PREFIX}/profiles/{{slug}}/rituals/{{ritual_key}}")
+    def update_ritual(
+        slug: str,
+        ritual_key: str,
+        body: RitualFields,
+        conn: sqlite3.Connection = Depends(db),
+    ) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            return rituals.update(conn, profile_id, ritual_key, body, now())
+
+    @app.delete(f"{API_PREFIX}/profiles/{{slug}}/rituals/{{ritual_key}}")
+    def retire_ritual(
+        slug: str,
+        ritual_key: str,
+        conn: sqlite3.Connection = Depends(db),
+    ) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            return rituals.retire(conn, profile_id, ritual_key, now())
+
+    @app.post(f"{API_PREFIX}/profiles/{{slug}}/rituals/reorder")
+    def reorder_rituals(
+        slug: str,
+        body: RitualReorder,
+        conn: sqlite3.Connection = Depends(db),
+    ) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            ordered = rituals.reorder(conn, profile_id, body.keys, now())
+        return {"profile": slug, "rituals": ordered}
 
     return app
