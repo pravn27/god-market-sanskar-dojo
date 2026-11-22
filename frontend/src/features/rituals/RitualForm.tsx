@@ -1,4 +1,4 @@
-import { Alert, Checkbox, Form, Input, InputNumber, Modal, Select } from 'antd'
+import { Alert, Button, Checkbox, Form, Input, InputNumber, Select, Typography } from 'antd'
 import { useEffect } from 'react'
 
 import type { RitualDefinition, RitualInput, RitualSchedule } from '../../api/client'
@@ -24,19 +24,17 @@ const WEEKDAY_OPTIONS = WEEKDAY_NAMES.map((name, index) => ({ label: name, value
 interface RitualFormProps {
   /** `null` creates a ritual; a definition edits it. */
   ritual: RitualDefinition | null
-  open: boolean
   submitting: boolean
   error?: string
   onCancel: () => void
   onSubmit: (input: RitualInput) => void
 }
 
-export default function RitualForm({ ritual, open, submitting, error, onCancel, onSubmit }: RitualFormProps) {
+export default function RitualForm({ ritual, submitting, error, onCancel, onSubmit }: RitualFormProps) {
   const [form] = Form.useForm<FormValues>()
   const schedule = Form.useWatch('schedule', form)
 
   useEffect(() => {
-    if (!open) return
     form.setFieldsValue({
       label: ritual?.label ?? '',
       minutes: ritual?.minutes ?? 20,
@@ -44,7 +42,7 @@ export default function RitualForm({ ritual, open, submitting, error, onCancel, 
       weekdays: ritual?.weekdays ?? [1, 2, 3, 4, 5],
       monthlyLastMarketDays: ritual?.monthlyLastMarketDays ?? 2,
     })
-  }, [open, ritual, form])
+  }, [ritual, form])
 
   const submit = async () => {
     // Field errors are already shown under each field, so a failed check just stops here.
@@ -62,21 +60,10 @@ export default function RitualForm({ ritual, open, submitting, error, onCancel, 
   }
 
   return (
-    <Modal
-      title={ritual ? 'Edit ritual' : 'Add ritual'}
-      open={open}
-      onCancel={onCancel}
-      onOk={submit}
-      okText="Save"
-      confirmLoading={submitting}
-      destroyOnHidden
-    >
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message="The change applies from today. Past days keep the ritual as it was."
-      />
+    <div>
+      <Typography.Paragraph type="secondary">
+        The change applies from today. Past days keep the ritual as it was.
+      </Typography.Paragraph>
       {error && <Alert type="error" showIcon style={{ marginBottom: 16 }} message={error} />}
       <Form form={form} layout="vertical" requiredMark="optional">
         <Form.Item
@@ -87,7 +74,7 @@ export default function RitualForm({ ritual, open, submitting, error, onCancel, 
             { max: 120, message: 'Keep the name to 120 characters or fewer.' },
           ]}
         >
-          <Input maxLength={120} placeholder="For example: Chart review" />
+          <Input maxLength={120} placeholder="For example: Chart review" autoFocus />
         </Form.Item>
         <Form.Item
           name="minutes"
@@ -118,6 +105,12 @@ export default function RitualForm({ ritual, open, submitting, error, onCancel, 
           </Form.Item>
         )}
       </Form>
-    </Modal>
+      <div className="ritual-form-actions">
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button type="primary" onClick={submit} loading={submitting}>
+          Save
+        </Button>
+      </div>
+    </div>
   )
 }

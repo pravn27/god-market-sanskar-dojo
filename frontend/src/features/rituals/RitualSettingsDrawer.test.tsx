@@ -137,7 +137,8 @@ describe('RitualSettingsDrawer', () => {
     renderDrawer(api)
     await screen.findByText('Daily Backtesting')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move Daily Backtesting down' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Daily Backtesting' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Move Daily Backtesting down' }))
 
     await waitFor(() => expect(api.reorderRituals).toHaveBeenCalledWith(['webinar', 'backtesting', 'gym']))
   })
@@ -146,8 +147,11 @@ describe('RitualSettingsDrawer', () => {
     renderDrawer(fakeApi())
     await screen.findByText('Daily Backtesting')
 
-    expect(screen.getByRole('button', { name: 'Move Daily Backtesting up' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Move Gym down' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Daily Backtesting' }))
+    expect(await screen.findByRole('menuitem', { name: 'Move Daily Backtesting up' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Gym' }))
+    expect(await screen.findByRole('menuitem', { name: 'Move Gym down' })).toBeDisabled()
   })
 
   it('retires a ritual only after confirmation', async () => {
@@ -155,7 +159,8 @@ describe('RitualSettingsDrawer', () => {
     renderDrawer(api)
     await screen.findByText('Daily Backtesting')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retire Daily Backtesting' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Daily Backtesting' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Retire Daily Backtesting' }))
     expect(api.retireRitual).not.toHaveBeenCalled()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retire' }))
@@ -171,7 +176,8 @@ describe('RitualSettingsDrawer', () => {
     renderDrawer(api)
     await screen.findByText('Daily Backtesting')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retire Daily Backtesting' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Daily Backtesting' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Retire Daily Backtesting' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Retire' }))
 
     expect(await screen.findByText(/started today/)).toBeInTheDocument()
