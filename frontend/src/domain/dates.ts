@@ -17,6 +17,13 @@ export function addDays(iso: IsoDate, days: number): IsoDate {
   return date.toISOString().slice(0, 10)
 }
 
+/** Ticks can be corrected for the last 7 days, today included. Older days are read-only. Mirrors `EDIT_WINDOW_DAYS` in the API. */
+export const EDIT_WINDOW_DAYS = 7
+
+export function isEditableDay(date: IsoDate, today: IsoDate): boolean {
+  return date <= today && date >= addDays(today, -(EDIT_WINDOW_DAYS - 1))
+}
+
 /** 0 = Sunday … 6 = Saturday. */
 export function dayOfWeek(iso: IsoDate): number {
   return new Date(toUtcMs(iso)).getUTCDay()

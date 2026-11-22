@@ -38,9 +38,15 @@ describe('createLocalDojoApi', () => {
     expect(day.rituals.find((r) => r.id === 'webinar')?.done).toBe(false)
   })
 
-  it('rejects past, future, and unknown rituals', async () => {
+  it('corrects the oldest day in the window', async () => {
     const api = createLocalDojoApi(memoryStorage(), now)
-    await expect(api.toggleRitual('2026-11-17', 'webinar')).rejects.toMatchObject({ status: 400 })
+    const day = await api.toggleRitual('2026-11-12', 'webinar')
+    expect(day.rituals.find((r) => r.id === 'webinar')?.done).toBe(true)
+  })
+
+  it('rejects days older than the window, future days, and unknown rituals', async () => {
+    const api = createLocalDojoApi(memoryStorage(), now)
+    await expect(api.toggleRitual('2026-11-11', 'webinar')).rejects.toMatchObject({ status: 400 })
     await expect(api.toggleRitual('2026-11-19', 'webinar')).rejects.toMatchObject({ status: 400 })
     await expect(api.toggleRitual('2026-11-18', 'nope')).rejects.toMatchObject({ status: 404 })
     await expect(api.toggleRitual('2026-11-18', 'opportunity_hunting')).rejects.toMatchObject({ status: 404 })
@@ -70,9 +76,10 @@ describe('createLocalDojoApi', () => {
       .rejects.toThrow(/Weekly cap reached/)
   })
 
-  it('marks only today as editable', async () => {
+  it('marks the last seven days, today included, as editable', async () => {
     const api = createLocalDojoApi(memoryStorage(), now)
     expect((await api.getDojoDay('2026-11-18')).editable).toBe(true)
-    expect((await api.getDojoDay('2026-11-17')).editable).toBe(false)
+    expect((await api.getDojoDay('2026-11-12')).editable).toBe(true)
+    expect((await api.getDojoDay('2026-11-11')).editable).toBe(false)
   })
 })

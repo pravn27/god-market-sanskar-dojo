@@ -1,5 +1,5 @@
 import type { ConductLine } from './codeOfConduct'
-import type { IsoDate } from './dates'
+import { isEditableDay, type IsoDate } from './dates'
 import { computeStreak, dailyDoneCount, isMarketDay, moodLevel, sanskarLineFor, type MoodLabel, type RitualLogs } from './dojo'
 import { ritualsFor, type RitualDef } from './rituals'
 
@@ -29,7 +29,7 @@ export function buildDojoDay(date: IsoDate, today: IsoDate, logs: RitualLogs): D
   const dailyDone = dailyDoneCount(doneIds)
   return {
     date,
-    editable: date === today,
+    editable: isEditableDay(date, today),
     marketDay: isMarketDay(date),
     calendar: 'weekdays_only',
     rituals,

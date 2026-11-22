@@ -105,11 +105,11 @@ describe('createHttpDojoApi', () => {
   })
 
   it('turns a backend rule error into a DojoApiError with the server message', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ detail: 'Past days are read-only.' }, 400))
-    const failure = api(fetchImpl as unknown as typeof fetch).toggleRitual('2026-11-20', 'backtesting')
+    const fetchImpl = vi.fn(async () => jsonResponse({ detail: 'Only the last 7 days can be changed.' }, 400))
+    const failure = api(fetchImpl as unknown as typeof fetch).toggleRitual('2026-11-01', 'backtesting')
 
     await expect(failure).rejects.toBeInstanceOf(DojoApiError)
-    await expect(failure).rejects.toMatchObject({ status: 400, message: 'Past days are read-only.' })
+    await expect(failure).rejects.toMatchObject({ status: 400, message: 'Only the last 7 days can be changed.' })
   })
 
   it('reads validation errors from a list of details', async () => {

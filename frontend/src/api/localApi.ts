@@ -1,4 +1,4 @@
-import { toIsoDate, type IsoDate } from '../domain/dates'
+import { EDIT_WINDOW_DAYS, isEditableDay, toIsoDate, type IsoDate } from '../domain/dates'
 import type { RitualLogs } from '../domain/dojo'
 import { buildDojoDay } from '../domain/dojoDay'
 import { findRitual, ritualsFor } from '../domain/rituals'
@@ -58,7 +58,7 @@ export function createLocalDojoApi(
     async toggleRitual(date: IsoDate, ritualId: string) {
       const current = today()
       if (date > current) throw new DojoApiError(400, 'Check-ins for a future date are not allowed.')
-      if (date < current) throw new DojoApiError(400, 'Past days are read-only.')
+      if (!isEditableDay(date, current)) throw new DojoApiError(400, `Only the last ${EDIT_WINDOW_DAYS} days can be changed.`)
       if (!findRitual(ritualId) || !ritualsFor(date).some((r) => r.id === ritualId)) {
         throw new DojoApiError(404, `Unknown ritual for this day: ${ritualId}`)
       }

@@ -3,8 +3,8 @@ import { Alert, Button, Card, Checkbox, Col, Drawer, Row, Skeleton, Space, Stati
 import { useState } from 'react'
 
 import { useDojoApi } from '../../api/DojoApiContext'
-import { dayOfWeek, type IsoDate } from '../../domain/dates'
-import { useDojoDay } from '../daily-dojo/useDailyDojo'
+import { dayOfWeek, EDIT_WINDOW_DAYS, type IsoDate } from '../../domain/dates'
+import { useDojoDay, useToggleRitual } from '../daily-dojo/useDailyDojo'
 import { cellStatus, type CellStatus } from './monthGrid'
 import { useMonthHistory } from './useMonthHistory'
 
@@ -169,6 +169,7 @@ export default function HistoryPage() {
 
 function DayDetail({ date }: { date: IsoDate }) {
   const { data: day, isLoading, error } = useDojoDay(date)
+  const toggle = useToggleRitual(date)
 
   if (isLoading) return <Skeleton active />
   if (error || !day) return <Alert type="error" showIcon message="Could not load this day." description={error?.message} />
@@ -187,10 +188,15 @@ function DayDetail({ date }: { date: IsoDate }) {
         </Col>
       </Row>
       <Tag>{day.marketDay ? 'Market day' : 'Non-market day'}</Tag>
+      {toggle.error && <Alert type="warning" showIcon message={toggle.error.message} />}
       <div>
         {day.rituals.map((ritual) => (
           <div className="dojo-ritual-row" key={ritual.id}>
-            <Checkbox checked={ritual.done} disabled>
+            <Checkbox
+              checked={ritual.done}
+              disabled={!day.editable || toggle.isPending}
+              onChange={() => toggle.mutate(ritual.id)}
+            >
               {ritual.label}
             </Checkbox>
             <Typography.Text type="secondary">{ritual.minutes} min</Typography.Text>
@@ -198,7 +204,9 @@ function DayDetail({ date }: { date: IsoDate }) {
         ))}
       </div>
       <Typography.Text type="secondary">
-        {day.editable ? 'Today can be ticked on the Today tab.' : 'Past days are read-only.'}
+        {day.editable
+          ? `You can correct the last ${EDIT_WINDOW_DAYS} days. Each change is logged.`
+          : `Older than ${EDIT_WINDOW_DAYS} days: read-only.`}
       </Typography.Text>
     </Space>
   )

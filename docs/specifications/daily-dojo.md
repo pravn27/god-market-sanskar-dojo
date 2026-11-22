@@ -31,7 +31,7 @@ Daily total: 135 minutes.
 - **Mood level** by count of daily rituals done: 0 none, 1 Blank, 2 Started, 3 Steady, 4 Strong, 5 Rocket, 6 On fire (the sheet's emoji scale, shown as labels).
 - **Streak:** consecutive market days on which at least `streak.min_daily_rituals` daily rituals were done. Non-market days are skipped, never counted as breaks. Today does not break the streak until the day ends.
 - **Sanskar line:** one Code of Conduct line per day, rotating in order, the same for the whole day.
-- A check-in can be toggled on the same day; past days are read-only.
+- A check-in can be toggled for the last 7 days, today included (`EDIT_WINDOW_DAYS = 7`). Each change is logged as a tick or untick event. Days older than the window are read-only, and future days cannot be checked in.
 - Weekend and monthly rituals appear only on their cadence days and never affect the daily streak.
 - The monthly review (`log_audit`) appears on the last two market days of each month. Market days are weekdays minus holidays; until a holiday list is configured, weekdays only.
 

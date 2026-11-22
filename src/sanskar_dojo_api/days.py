@@ -18,6 +18,8 @@ from .rituals import DefinitionError
 # `streak.min_daily_rituals` in the ASTA rules catalogue.
 STREAK_MIN_DAILY_RITUALS = 4
 RULES_VERSION = 1
+# Ticks can be corrected for the last 7 days, today included. Older days are read-only.
+EDIT_WINDOW_DAYS = 7
 
 
 def is_market_day(day: date) -> bool:
@@ -26,6 +28,15 @@ def is_market_day(day: date) -> bool:
 
 def is_weekend(day: date) -> bool:
     return day.weekday() >= 5
+
+
+def edit_window_start(today: date) -> date:
+    """The oldest day that can still be ticked: today and the 6 days before it."""
+    return today - timedelta(days=EDIT_WINDOW_DAYS - 1)
+
+
+def is_editable(day: date, today: date) -> bool:
+    return edit_window_start(today) <= day <= today
 
 
 def is_last_n_market_days(day: date, n: int) -> bool:
@@ -114,7 +125,7 @@ def day_view(conn: sqlite3.Connection, profile_id: int, day: date, today: date) 
     done = _done_keys(conn, profile_id, day)
     return {
         "date": day.isoformat(),
-        "editable": day == today,
+        "editable": is_editable(day, today),
         "market_day": is_market_day(day),
         "rituals": [
             {
@@ -139,11 +150,11 @@ def toggle(
     today: date,
     now: datetime,
 ) -> dict[str, Any]:
-    """Tick or untick a ritual. Only today can change, and only rituals shown that day."""
+    """Tick or untick a ritual. Only the edit window can change, and only rituals shown that day."""
     if day > today:
         raise DefinitionError(400, "Check-ins for a future date are not allowed.")
-    if day < today:
-        raise DefinitionError(400, "Past days are read-only.")
+    if not is_editable(day, today):
+        raise DefinitionError(400, f"Only the last {EDIT_WINDOW_DAYS} days can be changed.")
     shown_keys = {r["ritual_key"] for r in _shown_on(conn, profile_id, day)}
     if ritual_key not in shown_keys:
         raise DefinitionError(404, f"Unknown ritual for this day: {ritual_key}")

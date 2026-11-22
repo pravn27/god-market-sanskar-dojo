@@ -53,6 +53,7 @@ function fakeApi(overrides: Partial<DojoApi> = {}) {
     today: () => TODAY,
     getMonth: vi.fn(async (month: string) => buildMonth(month, doneFor)),
     getDojoDay: vi.fn(async (date: IsoDate) => buildDojoDay(date, TODAY, logs)),
+    toggleRitual: vi.fn(async (date: IsoDate) => buildDojoDay(date, TODAY, {})),
     ...overrides,
   } as unknown as DojoApi
   return api
@@ -109,8 +110,9 @@ describe('HistoryPage', () => {
     expect(screen.getByRole('button', { name: '2026-11-25: 0 of 6 daily rituals' })).toBeDisabled()
   })
 
-  it('opens a read-only day with its rituals when a past day is clicked', async () => {
-    renderHistory(fakeApi())
+  it('lets a day inside the last 7 days be corrected from its drawer', async () => {
+    const api = fakeApi()
+    renderHistory(api)
     await screen.findByText('Market days so far')
 
     fireEvent.click(screen.getByRole('button', { name: '2026-11-17: 6 of 6 daily rituals' }))
@@ -119,8 +121,22 @@ describe('HistoryPage', () => {
     expect(within(dialog).getByText('Tuesday, 17 November 2026')).toBeInTheDocument()
     const ritual = await within(dialog).findByRole('checkbox', { name: 'Daily Backtesting' })
     expect(ritual).toBeChecked()
+    expect(ritual).toBeEnabled()
+
+    fireEvent.click(ritual)
+    await waitFor(() => expect(api.toggleRitual).toHaveBeenCalledWith('2026-11-17', 'backtesting'))
+  })
+
+  it('keeps a day older than the last 7 days read-only', async () => {
+    renderHistory(fakeApi())
+    await screen.findByText('Market days so far')
+
+    fireEvent.click(screen.getByRole('button', { name: '2026-11-10: 2 of 6 daily rituals' }))
+
+    const dialog = await screen.findByRole('dialog')
+    const ritual = await within(dialog).findByRole('checkbox', { name: 'Daily Backtesting' })
     expect(ritual).toBeDisabled()
-    expect(within(dialog).getByText('Past days are read-only.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Older than 7 days: read-only.')).toBeInTheDocument()
   })
 
   it('shows an error with a retry when the month cannot be loaded', async () => {

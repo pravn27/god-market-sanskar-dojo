@@ -54,7 +54,7 @@ def tick(client, day, key):
 
 
 def log_history(app, day, keys):
-    """Write past ticks directly; the API correctly refuses to change past days."""
+    """Write ticks directly, bypassing the edit window, to set up streak history."""
     conn = app.state.conn
     with conn:
         for key in keys:
@@ -69,7 +69,7 @@ def test_a_weekday_shows_only_the_daily_rituals(client):
     body = view(client, "2026-11-18")  # Wednesday
     assert [r["ritual_key"] for r in body["rituals"]] == DAILY
     assert body["market_day"] is True
-    assert body["editable"] is False
+    assert body["editable"] is True  # 4 days before today, inside the 7-day window
 
 
 def test_saturday_adds_the_weekend_quest(client):
@@ -87,10 +87,14 @@ def test_monthly_review_is_hidden_one_day_earlier(client):
     assert "log_audit" not in shown_keys(client, "2026-11-26")
 
 
-def test_today_is_editable_and_past_days_are_not(client, clock):
+def test_the_last_seven_days_are_editable_and_older_days_are_not(client, clock):
+    # Today is 2026-11-22, so the window is 2026-11-16 .. 2026-11-22.
     assert view(client, "2026-11-22")["editable"] is True
+    assert view(client, "2026-11-16")["editable"] is True
+    assert view(client, "2026-11-15")["editable"] is False
     clock.move_to("2026-11-23")
-    assert view(client, "2026-11-22")["editable"] is False
+    assert view(client, "2026-11-17")["editable"] is True
+    assert view(client, "2026-11-16")["editable"] is False
 
 
 def test_ticking_today_updates_the_day(client):
@@ -124,11 +128,18 @@ def test_a_tick_event_carries_the_rules_version(client, app):
     assert json.loads(row["payload"]) == {}
 
 
-def test_past_days_are_read_only(client, clock):
+def test_a_past_day_inside_the_window_can_be_corrected(client, clock):
     clock.move_to("2026-11-23")
-    response = tick(client, "2026-11-22", "webinar")
+    body = tick(client, "2026-11-17", "webinar").json()  # oldest day in the window
+    assert next(r for r in body["rituals"] if r["ritual_key"] == "webinar")["done"] is True
+    assert body["daily_done"] == 1
+
+
+def test_days_older_than_the_window_are_read_only(client, clock):
+    clock.move_to("2026-11-23")
+    response = tick(client, "2026-11-16", "webinar")
     assert response.status_code == 400
-    assert "read-only" in response.json()["detail"]
+    assert "last 7 days" in response.json()["detail"]
 
 
 def test_future_days_cannot_be_ticked(client):

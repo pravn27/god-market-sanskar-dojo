@@ -80,6 +80,12 @@ def test_days_after_today_are_future_and_not_editable(client):
     assert by_date(body, "2026-11-23")["future"] is True
 
 
+def test_only_the_last_seven_days_are_editable_in_the_month(client):
+    body = month(client, "2026-11")
+    assert by_date(body, "2026-11-16")["editable"] is True
+    assert by_date(body, "2026-11-15")["editable"] is False
+
+
 def test_daily_totals_exclude_the_weekend_quest(client):
     body = month(client, "2026-11")
     saturday = by_date(body, "2026-11-21")
