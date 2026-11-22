@@ -13,3 +13,6 @@ frontend/dist/
 
 # Local database, WAL/shared-memory files and backups
 data/
+
+# Backend log written by scripts/dev.sh
+.dev-logs/

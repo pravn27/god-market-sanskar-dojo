@@ -18,26 +18,16 @@ A discipline game for traders: build ASTA habits, character and daily rituals. P
 
 ## Status
 
-Frontend first: the app shell and the Daily Dojo work on browser storage. The backend now has its database foundation: profile `praveen`, versioned ritual definitions, logs, an append-only event log and the trade-gate tables. The frontend still uses browser storage until it is switched to the API. See the [documentation map](docs/README.md) and the [delivery roadmap](docs/product/delivery-roadmap.md).
+Daily Dojo reads and saves through the local backend and its SQLite database: the day view, ticks, the daily count and the streak. Trade Gate still uses browser storage until its endpoints exist. The backend also stores ritual definitions with full history (profile `praveen`) and the event log. See the [documentation map](docs/README.md) and the [delivery roadmap](docs/product/delivery-roadmap.md).
 
-## Run the backend
+## Start everything
 
-The backend is a local FastAPI app on SQLite. It creates `data/sanskar-dojo.sqlite3` on first start, applies the migrations and seeds the profile `praveen` with the eight daily rituals.
-
-```bash
-uv sync
-uv run pytest                      # backend tests
-uv run uvicorn sanskar_dojo_api.app:create_app --factory --host 127.0.0.1 --port 8765
-curl http://127.0.0.1:8765/api/v1/profiles/praveen/rituals?as_of=2026-11-22
-```
-
-Set `SANSKAR_DOJO_DB` to use another database file. The server binds to `127.0.0.1` only.
-
-## Run the frontend
+Prerequisites: [uv](https://docs.astral.sh/uv/) and Node.js 24. Then, from the repository root:
 
 ```bash
-cd frontend
-npm ci
-npm run dev        # http://localhost:5173
-npm test           # unit and page tests
+scripts/dev.sh           # installs what is missing, starts backend and frontend
 ```
+
+Open **http://localhost:5173/dojo**. Press Ctrl-C to stop both. Run all tests with `scripts/dev.sh --test`.
+
+The backend runs on `127.0.0.1:8765` and stores everything in `data/sanskar-dojo.sqlite3`. The full guide covers prerequisites, starting the services by hand, configuration, backups, resetting the database, logs and troubleshooting: [local setup and running](docs/operations/local-setup-and-run.md).
