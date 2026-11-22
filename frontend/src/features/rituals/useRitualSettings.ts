@@ -15,11 +15,16 @@ export function useRitualDefinitions(date: string, enabled: boolean) {
   })
 }
 
-/** Every change applies from today, so refresh the ritual list and today's Dojo. */
+/** Every change applies from today, so refresh the ritual list, today's Dojo and the History calendar. */
 export function useRitualMutations() {
   const api = useDojoApi()
   const queryClient = useQueryClient()
-  const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ['rituals'] }), queryClient.invalidateQueries({ queryKey: ['dojo-day'] })])
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['rituals'] }),
+      queryClient.invalidateQueries({ queryKey: ['dojo-day'] }),
+      queryClient.invalidateQueries({ queryKey: ['month'] }),
+    ])
 
   return {
     create: useMutation({

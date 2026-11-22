@@ -3,9 +3,9 @@ import { Button, Dropdown, Layout, Menu, Tooltip, Typography } from 'antd'
 import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
-import DailyDojoPage from './features/daily-dojo/DailyDojoPage'
 import PlannedScreen from './features/planned/PlannedScreen'
 import RitualSettingsDrawer from './features/rituals/RitualSettingsDrawer'
+import RitualsPage from './features/rituals/RitualsPage'
 import TradeGatePage from './features/trade-gate/TradeGatePage'
 import { SCREENS } from './screens'
 import { useUiStore } from './state/uiStore'
@@ -72,7 +72,7 @@ export default function App() {
         <Layout>
           <Content className="app-content">
             <Routes>
-              <Route path="/rituals" element={<DailyDojoPage />} />
+              <Route path="/rituals" element={<RitualsPage />} />
               {/* Old address from before the rename, kept so bookmarks still open the page. */}
               <Route path="/dojo" element={<Navigate to="/rituals" replace />} />
               <Route path="/trade-gate" element={<TradeGatePage />} />

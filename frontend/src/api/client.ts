@@ -76,6 +76,35 @@ export interface RitualInput {
   countsForStreak: boolean
 }
 
+/** One day in the History calendar. Counts are for daily rituals only. */
+export interface MonthDay {
+  date: IsoDate
+  marketDay: boolean
+  /** After today. Never counted and never clickable. */
+  future: boolean
+  dailyTotal: number
+  dailyDone: number
+  /** Market day with at least the streak minimum of daily rituals. */
+  onTrack: boolean
+  /** Market day with every daily ritual done. */
+  full: boolean
+}
+
+export interface MonthView {
+  /** `YYYY-MM` */
+  month: string
+  /** Previous month, or null before the first tracked month. */
+  prevMonth: string | null
+  /** Next month, or null after the current month. */
+  nextMonth: string | null
+  days: MonthDay[]
+  summary: {
+    marketDays: number
+    onTrackDays: number
+    fullDays: number
+  }
+}
+
 /**
  * Contract shared by the browser-storage implementation and the `/api/v1` backend.
  * Pages depend only on this interface.
@@ -83,6 +112,7 @@ export interface RitualInput {
 export interface DojoApi {
   today(): IsoDate
   getDojoDay(date: IsoDate): Promise<DojoDay>
+  getMonth(month: string): Promise<MonthView>
   toggleRitual(date: IsoDate, ritualId: string): Promise<DojoDay>
   listRituals(date: IsoDate): Promise<RitualDefinition[]>
   createRitual(input: RitualInput): Promise<RitualDefinition>

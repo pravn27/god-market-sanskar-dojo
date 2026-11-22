@@ -72,6 +72,12 @@ def _daily_done(shown: list[dict[str, Any]], done: set[str]) -> int:
     return sum(1 for r in shown if r["cadence"] == "daily" and r["ritual_key"] in done)
 
 
+# Public names for the monthly history, which reads the same rules.
+shown_on = _shown_on
+done_keys = _done_keys
+daily_done_count = _daily_done
+
+
 def _qualifies(conn: sqlite3.Connection, profile_id: int, day: date) -> bool:
     shown = _shown_on(conn, profile_id, day)
     return _daily_done(shown, _done_keys(conn, profile_id, day)) >= STREAK_MIN_DAILY_RITUALS

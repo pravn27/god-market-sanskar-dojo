@@ -50,6 +50,11 @@ export function createLocalDojoApi(
       return buildDojoDay(date, today(), read().ritualLogs)
     },
 
+    // Monthly history is computed from the database, so browser storage cannot show it.
+    async getMonth() {
+      throw new DojoApiError(501, 'History needs the local backend.')
+    },
+
     async toggleRitual(date: IsoDate, ritualId: string) {
       const current = today()
       if (date > current) throw new DojoApiError(400, 'Check-ins for a future date are not allowed.')

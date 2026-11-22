@@ -6,6 +6,7 @@ import {
   DojoApiError,
   type DojoApi,
   type LogTradePlanInput,
+  type MonthView,
   type RitualDefinition,
   type RitualInput,
   type RitualSchedule,
@@ -98,6 +99,45 @@ function toDojoDay(body: ApiDay): DojoDay {
   }
 }
 
+/** Shape returned by `GET /api/v1/profiles/{slug}/months/{month}`. */
+interface ApiMonth {
+  month: string
+  prev_month: string | null
+  next_month: string | null
+  days: {
+    date: IsoDate
+    market_day: boolean
+    future: boolean
+    daily_total: number
+    daily_done: number
+    on_track: boolean
+    full: boolean
+  }[]
+  summary: { market_days: number; on_track_days: number; full_days: number }
+}
+
+function toMonthView(body: ApiMonth): MonthView {
+  return {
+    month: body.month,
+    prevMonth: body.prev_month,
+    nextMonth: body.next_month,
+    days: body.days.map((d) => ({
+      date: d.date,
+      marketDay: d.market_day,
+      future: d.future,
+      dailyTotal: d.daily_total,
+      dailyDone: d.daily_done,
+      onTrack: d.on_track,
+      full: d.full,
+    })),
+    summary: {
+      marketDays: body.summary.market_days,
+      onTrackDays: body.summary.on_track_days,
+      fullDays: body.summary.full_days,
+    },
+  }
+}
+
 function toRitualDefinition(r: ApiRitual): RitualDefinition {
   return {
     key: r.ritual_key,
@@ -177,6 +217,10 @@ export function createHttpDojoApi({
 
     async getDojoDay(date: IsoDate) {
       return toDojoDay(await send<ApiDay>(`/days/${date}`))
+    },
+
+    async getMonth(month: string) {
+      return toMonthView(await send<ApiMonth>(`/months/${encodeURIComponent(month)}`))
     },
 
     async toggleRitual(date: IsoDate, ritualId: string) {

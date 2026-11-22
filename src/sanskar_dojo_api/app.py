@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
-from . import __version__, days, rituals
+from . import __version__, days, months, rituals
 from .db import connect, migrate, schema_version
 from .models import RitualFields, RitualReorder
 from .rituals import DefinitionError
@@ -145,6 +145,12 @@ def create_app(db_path: str | Path | None = None, clock: Clock | None = None) ->
         with conn:
             ordered = rituals.reorder(conn, profile_id, body.keys, now())
         return {"profile": slug, "rituals": ordered}
+
+    @app.get(f"{API_PREFIX}/profiles/{{slug}}/months/{{month}}")
+    def get_month(slug: str, month: str, conn: sqlite3.Connection = Depends(db)) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        year, number = months.parse_month(month)
+        return months.month_view(conn, profile_id, year, number, now().date())
 
     @app.get(f"{API_PREFIX}/profiles/{{slug}}/days/{{day}}")
     def get_day(slug: str, day: str, conn: sqlite3.Connection = Depends(db)) -> dict:

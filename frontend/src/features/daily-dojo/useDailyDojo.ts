@@ -13,6 +13,9 @@ export function useToggleRitual(date: IsoDate) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (ritualId: string) => api.toggleRitual(date, ritualId),
-    onSuccess: (day) => queryClient.setQueryData(['dojo-day', date], day),
+    onSuccess: (day) => {
+      queryClient.setQueryData(['dojo-day', date], day)
+      void queryClient.invalidateQueries({ queryKey: ['month'] })
+    },
   })
 }

@@ -41,6 +41,35 @@ function api(fetchImpl: typeof fetch, now = () => new Date(2026, 10, 23, 9, 0)):
 }
 
 describe('createHttpDojoApi', () => {
+  it('maps the month response and keeps the navigation limits', async () => {
+    const month = {
+      month: '2026-11',
+      prev_month: '2026-10',
+      next_month: null,
+      days: [
+        { date: '2026-11-02', market_day: true, future: false, daily_total: 6, daily_done: 4, on_track: true, full: false },
+        { date: '2026-11-03', market_day: false, future: false, daily_total: 6, daily_done: 6, on_track: false, full: false },
+      ],
+      summary: { market_days: 1, on_track_days: 1, full_days: 0 },
+    }
+    const fetchImpl = vi.fn(async () => jsonResponse(month))
+    const view = await api(fetchImpl as unknown as typeof fetch).getMonth('2026-11')
+
+    expect(fetchImpl).toHaveBeenCalledWith('/api/v1/profiles/praveen/months/2026-11', expect.anything())
+    expect(view.prevMonth).toBe('2026-10')
+    expect(view.nextMonth).toBeNull()
+    expect(view.days[0]).toEqual({
+      date: '2026-11-02',
+      marketDay: true,
+      future: false,
+      dailyTotal: 6,
+      dailyDone: 4,
+      onTrack: true,
+      full: false,
+    })
+    expect(view.summary).toEqual({ marketDays: 1, onTrackDays: 1, fullDays: 0 })
+  })
+
   it('maps the day response into the shape the pages already use', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse(monday))
     const day = await api(fetchImpl as unknown as typeof fetch).getDojoDay('2026-11-23')
