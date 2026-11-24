@@ -1,5 +1,6 @@
 import { Alert, Button, Card, Checkbox, Col, Input, InputNumber, Radio, Row, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import {
   type ConvictionLevel,
@@ -169,6 +170,7 @@ export default function TradeGatePage() {
   const [slWithin30Seconds, setSlWithin30Seconds] = useState(false)
   const { data: status } = useTradeGateStatus()
   const logPlan = useLogTradePlan()
+  const navigate = useNavigate()
 
   const result = useMemo(() => evaluateSizing(form), [form])
   const isFno = form.segment !== 'equity'
@@ -189,13 +191,15 @@ export default function TradeGatePage() {
   if (!lossAccepted || !slWithin30Seconds) blockers.push('Tick both commitments.')
   const canLog = blockers.length === 0 && !logPlan.isPending
 
+  /** A saved plan opens the Backtesting drawer with its values filled in. */
   const submit = () =>
     logPlan.mutate(
       { sizing: form, lossAccepted, slWithin30Seconds },
       {
-        onSuccess: () => {
+        onSuccess: (plan) => {
           setLossAccepted(false)
           setSlWithin30Seconds(false)
+          navigate('/backtests', { state: { fromPlan: plan } })
         },
       },
     )
@@ -323,9 +327,6 @@ export default function TradeGatePage() {
             <ul aria-label="Why logging is blocked" style={{ margin: 0, paddingInlineStart: 20 }}>
               {blockers.map((reason) => <li key={reason}><Typography.Text type="secondary">{reason}</Typography.Text></li>)}
             </ul>
-          )}
-          {logPlan.isSuccess && (
-            <Alert type="success" showIcon message={`Plan saved: ${logPlan.data.instrument}, risk ${rupees(logPlan.data.actualRisk)}, R:R 1:${logPlan.data.rewardRisk}.`} />
           )}
           {logPlan.error && <Alert type="error" showIcon message={logPlan.error.message} />}
         </Space>

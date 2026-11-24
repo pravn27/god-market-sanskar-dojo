@@ -2,8 +2,12 @@ import { toIsoDate, type IsoDate } from '../domain/dates'
 import type { DojoDay, DojoRitual } from '../domain/dojoDay'
 import { moodLevel, sanskarLineFor } from '../domain/dojo'
 import type { RitualCadence } from '../domain/rituals'
+import type { BacktestInput, ExitReason, PnlCategory, SetupFamily, SetupType, Timeframe } from '../domain/backtest'
+import type { OptionType, Segment, Side } from '../domain/tradeGate'
 import {
   DojoApiError,
+  type BacktestFilters,
+  type BacktestLog,
   type CalendarSummary,
   type DojoApi,
   type GrowthMonth,
@@ -264,6 +268,153 @@ async function errorMessage(response: Response): Promise<string> {
   return `Request failed with status ${response.status}.`
 }
 
+/** One backtest log as returned by `/backtests`. Calculated fields are snake_case too. */
+interface ApiBacktest {
+  id: number
+  segment: Segment
+  side: Side
+  setup_family: SetupFamily
+  setup_type: SetupType
+  pattern: string | null
+  instrument: string
+  option_type: OptionType | null
+  strike: number | null
+  expiry_date: IsoDate | null
+  lot_size: number | null
+  lots: number | null
+  quantity: number
+  tide_tf: Timeframe | null
+  wave_tf: Timeframe | null
+  ripple_tf: Timeframe | null
+  entry_date: IsoDate
+  entry_time: string | null
+  entry_price: number
+  entry_criteria: string
+  stop_loss: number
+  target_1: number
+  target_2: number | null
+  exit_date: IsoDate
+  exit_time: string | null
+  exit_price: number
+  exit_reason: ExitReason
+  exit_criteria: string | null
+  capital: number
+  spot_price: number | null
+  margin_used: number | null
+  observations: string | null
+  chart_link: string | null
+  lesson: string
+  checks: { item_id: string; ticked: boolean }[]
+  rules_version: number
+  created_at: string
+  updated_at: string
+  risk_per_unit: number
+  risk_taken: number
+  reward_t1: number
+  rr_t1: number | null
+  reward_t2: number | null
+  rr_t2: number | null
+  points: number
+  pnl: number
+  pct: number
+  roi: number
+  holding_days: number
+  pnl_category: PnlCategory
+}
+
+function toBacktestLog(body: ApiBacktest): BacktestLog {
+  return {
+    id: body.id,
+    segment: body.segment,
+    side: body.side,
+    setupFamily: body.setup_family,
+    setupType: body.setup_type,
+    pattern: body.pattern,
+    instrument: body.instrument,
+    optionType: body.option_type,
+    strike: body.strike,
+    expiryDate: body.expiry_date,
+    lotSize: body.lot_size,
+    lots: body.lots,
+    quantity: body.quantity,
+    tideTf: body.tide_tf,
+    waveTf: body.wave_tf,
+    rippleTf: body.ripple_tf,
+    entryDate: body.entry_date,
+    entryTime: body.entry_time,
+    entryPrice: body.entry_price,
+    entryCriteria: body.entry_criteria,
+    stopLoss: body.stop_loss,
+    target1: body.target_1,
+    target2: body.target_2,
+    exitDate: body.exit_date,
+    exitTime: body.exit_time,
+    exitPrice: body.exit_price,
+    exitReason: body.exit_reason,
+    exitCriteria: body.exit_criteria,
+    capital: body.capital,
+    spotPrice: body.spot_price,
+    marginUsed: body.margin_used,
+    observations: body.observations,
+    chartLink: body.chart_link,
+    lesson: body.lesson,
+    checks: body.checks.map((check) => ({ itemId: check.item_id, ticked: check.ticked })),
+    createdAt: body.created_at,
+    updatedAt: body.updated_at,
+    riskPerUnit: body.risk_per_unit,
+    riskTaken: body.risk_taken,
+    reward1: body.reward_t1,
+    rr1: body.rr_t1,
+    reward2: body.reward_t2,
+    rr2: body.rr_t2,
+    points: body.points,
+    pnl: body.pnl,
+    pct: body.pct,
+    roi: body.roi,
+    holdingDays: body.holding_days,
+    pnlCategory: body.pnl_category,
+  }
+}
+
+function toApiBacktestBody(input: BacktestInput) {
+  return {
+    segment: input.segment,
+    side: input.side,
+    setup_family: input.setupFamily,
+    setup_type: input.setupType,
+    pattern: input.pattern,
+    instrument: input.instrument,
+    option_type: input.optionType,
+    strike: input.strike,
+    expiry_date: input.expiryDate,
+    lot_size: input.lotSize,
+    lots: input.lots,
+    quantity: input.quantity,
+    tide_tf: input.tideTf,
+    wave_tf: input.waveTf,
+    ripple_tf: input.rippleTf,
+    entry_date: input.entryDate,
+    entry_time: input.entryTime,
+    entry_price: input.entryPrice,
+    entry_criteria: input.entryCriteria,
+    stop_loss: input.stopLoss,
+    target_1: input.target1,
+    target_2: input.target2,
+    exit_date: input.exitDate,
+    exit_time: input.exitTime,
+    exit_price: input.exitPrice,
+    exit_reason: input.exitReason,
+    exit_criteria: input.exitCriteria,
+    capital: input.capital,
+    spot_price: input.spotPrice,
+    margin_used: input.marginUsed,
+    observations: input.observations,
+    chart_link: input.chartLink,
+    lesson: input.lesson,
+    checks: input.checks.map((check) => ({ item_id: check.itemId, ticked: check.ticked })),
+  }
+}
+
 export interface HttpDojoApiOptions {
   /** Trade Gate has no backend endpoints yet, so it is delegated to another implementation. */
   tradeGate: Pick<DojoApi, 'getTradeGateStatus' | 'logTradePlan'>
@@ -352,6 +503,31 @@ export function createHttpDojoApi({
     async reorderRituals(keys: string[]) {
       const body = await send<{ rituals: ApiRitual[] }>('/rituals/reorder', json({ keys }))
       return body.rituals.map(toRitualDefinition)
+    },
+
+    async listBacktests(filters: BacktestFilters = {}) {
+      const params = new URLSearchParams()
+      if (filters.segment) params.set('segment', filters.segment)
+      if (filters.setupType) params.set('setup_type', filters.setupType)
+      if (filters.outcome) params.set('outcome', filters.outcome)
+      if (filters.from) params.set('from', filters.from)
+      if (filters.to) params.set('to', filters.to)
+      const query = params.toString()
+      const body = await send<{ backtests: ApiBacktest[] }>(`/backtests${query ? `?${query}` : ''}`)
+      return body.backtests.map(toBacktestLog)
+    },
+
+    async createBacktest(input: BacktestInput) {
+      return toBacktestLog(await send<ApiBacktest>('/backtests', json(toApiBacktestBody(input))))
+    },
+
+    async updateBacktest(id: number, input: BacktestInput) {
+      const init: RequestInit = { method: 'PUT', body: JSON.stringify(toApiBacktestBody(input)) }
+      return toBacktestLog(await send<ApiBacktest>(`/backtests/${id}`, init))
+    },
+
+    async deleteBacktest(id: number) {
+      await send<unknown>(`/backtests/${id}`, { method: 'DELETE' })
     },
 
     getTradeGateStatus(): Promise<TradeGateStatus> {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import App from '../../App'
@@ -56,9 +56,15 @@ describe('TradeGatePage', () => {
     expect(log).toBeEnabled()
     fireEvent.click(log)
 
-    expect(await screen.findByText(/Plan saved: Test stock, risk ₹2,000, R:R 1:3.5/)).toBeInTheDocument()
-    const weekly = screen.getByText('Plans this week').closest('.ant-statistic') as HTMLElement
-    await waitFor(() => expect(within(weekly).getByText('1')).toBeInTheDocument())
+    // A saved plan opens the Backtesting drawer with its values filled in.
+    // "Entry price" exists only on the backtest form, so waiting for it means the route has changed.
+    expect(await screen.findByLabelText('Entry price')).toHaveValue('3950')
+    expect(window.location.pathname).toBe('/backtests')
+    expect(screen.getByLabelText('Instrument')).toHaveValue('Test stock')
+    expect(screen.getByLabelText('Stop loss')).toHaveValue('3850')
+    expect(screen.getByLabelText('Target 1')).toHaveValue('4300')
+    expect(screen.getByLabelText('Quantity (shares)')).toHaveValue('20')
+    expect(screen.getByText('Buy / Long').closest('label')).toHaveClass('ant-radio-button-wrapper-checked')
   })
 
   it('sets conviction by clicking a risk range column', async () => {

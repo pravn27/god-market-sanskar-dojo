@@ -41,11 +41,11 @@ def make_profile(conn: sqlite3.Connection, slug: str = "tester") -> int:
 
 def test_migrate_creates_every_table_and_sets_version(conn):
     assert EXPECTED_TABLES <= table_names(conn)
-    assert schema_version(conn) == 1
+    assert schema_version(conn) == 2
 
 
 def test_migrate_is_a_no_op_when_current(conn):
-    assert migrate(conn) == 1
+    assert migrate(conn) == 2
 
 
 def test_newer_schema_is_refused(tmp_path):

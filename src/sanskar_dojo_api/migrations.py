@@ -131,6 +131,71 @@ CREATE TABLE trade_exits (
 );
 """
 
+# Backtest logs for practice: one row per simulated trade, with its checklist ticks.
+# Calculated fields (points, P/L, R:R and so on) are never stored.
+V2_BACKTEST_LOGS = """
+CREATE TABLE backtest_logs (
+    id              INTEGER PRIMARY KEY,
+    profile_id      INTEGER NOT NULL REFERENCES profiles(id),
+    segment         TEXT NOT NULL CHECK (segment IN ('equity', 'futures', 'options')),
+    side            TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+    setup_family    TEXT NOT NULL CHECK (setup_family IN ('swing', 'momentum')),
+    setup_type      TEXT NOT NULL CHECK (setup_type IN (
+                        'rd_bullish', 'rd_bearish', 'fbd', 'double_top', 'double_bottom',
+                        'third_wave', 'other')),
+    pattern         TEXT,
+    instrument      TEXT NOT NULL,
+    option_type     TEXT CHECK (option_type IS NULL OR option_type IN ('CE', 'PE')),
+    strike          REAL CHECK (strike IS NULL OR strike > 0),
+    expiry_date     TEXT,
+    lot_size        INTEGER CHECK (lot_size IS NULL OR lot_size > 0),
+    lots            INTEGER CHECK (lots IS NULL OR lots > 0),
+    quantity        INTEGER NOT NULL CHECK (quantity > 0),
+    tide_tf         TEXT,
+    wave_tf         TEXT,
+    ripple_tf       TEXT,
+    entry_date      TEXT NOT NULL,
+    entry_time      TEXT,
+    entry_price     REAL NOT NULL CHECK (entry_price > 0),
+    entry_criteria  TEXT NOT NULL,
+    stop_loss       REAL NOT NULL CHECK (stop_loss > 0),
+    target_1        REAL NOT NULL CHECK (target_1 > 0),
+    target_2        REAL CHECK (target_2 IS NULL OR target_2 > 0),
+    exit_date       TEXT NOT NULL,
+    exit_time       TEXT,
+    exit_price      REAL NOT NULL CHECK (exit_price > 0),
+    exit_reason     TEXT NOT NULL CHECK (exit_reason IN (
+                        'planned_target', 'planned_stop', 'trail_stop',
+                        'view_invalidated', 'early_book', 'other')),
+    exit_criteria   TEXT,
+    capital         REAL NOT NULL CHECK (capital > 0),
+    spot_price      REAL CHECK (spot_price IS NULL OR spot_price > 0),
+    margin_used     REAL CHECK (margin_used IS NULL OR margin_used > 0),
+    observations    TEXT,
+    chart_link      TEXT,
+    lesson          TEXT NOT NULL,
+    rules_version   INTEGER NOT NULL,
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    CHECK ((segment = 'options') = (option_type IS NOT NULL)),
+    CHECK ((segment = 'options') = (strike IS NOT NULL)),
+    CHECK ((segment = 'equity') = (expiry_date IS NULL)),
+    CHECK ((segment = 'equity') = (lot_size IS NULL)),
+    CHECK ((segment = 'equity') = (lots IS NULL))
+);
+
+CREATE INDEX backtest_logs_by_entry ON backtest_logs (profile_id, entry_date);
+
+-- Checklist ticks for a log, one row per item.
+CREATE TABLE backtest_log_checks (
+    log_id   INTEGER NOT NULL REFERENCES backtest_logs(id) ON DELETE CASCADE,
+    item_id  TEXT NOT NULL,
+    ticked   INTEGER NOT NULL CHECK (ticked IN (0, 1)),
+    PRIMARY KEY (log_id, item_id)
+);
+"""
+
 MIGRATIONS: tuple[str, ...] = (
     V1_PROFILES_AND_RITUALS + V1_TRADE_GATE,
+    V2_BACKTEST_LOGS,
 )

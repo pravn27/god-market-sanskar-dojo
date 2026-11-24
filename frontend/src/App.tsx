@@ -3,6 +3,7 @@ import { Button, Dropdown, Layout, Menu, Tooltip, Typography } from 'antd'
 import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
+import BacktestsPage from './features/backtests/BacktestsPage'
 import PlannedScreen from './features/planned/PlannedScreen'
 import RitualSettingsDrawer from './features/rituals/RitualSettingsDrawer'
 import RitualsPage from './features/rituals/RitualsPage'
@@ -12,7 +13,7 @@ import { useUiStore } from './state/uiStore'
 
 const { Header, Sider, Content, Footer } = Layout
 
-const BUILT_PATHS = new Set(['/rituals', '/trade-gate'])
+const BUILT_PATHS = new Set(['/rituals', '/trade-gate', '/backtests'])
 
 export default function App() {
   const location = useLocation()
@@ -76,6 +77,7 @@ export default function App() {
               {/* Old address from before the rename, kept so bookmarks still open the page. */}
               <Route path="/dojo" element={<Navigate to="/rituals" replace />} />
               <Route path="/trade-gate" element={<TradeGatePage />} />
+              <Route path="/backtests" element={<BacktestsPage />} />
               {SCREENS.filter((screen) => !BUILT_PATHS.has(screen.path)).map((screen) => (
                 <Route key={screen.path} path={screen.path} element={<PlannedScreen screen={screen} />} />
               ))}

@@ -1,8 +1,25 @@
 import type { IsoDate } from '../domain/dates'
+import type { BacktestInput, BacktestResults, PnlCategory, SetupType } from '../domain/backtest'
 import type { DojoDay, DojoRitual } from '../domain/dojoDay'
-import type { ConvictionLevel, Direction, PlanCounts, Segment, SizingInput } from '../domain/tradeGate'
+import type { ConvictionLevel, Direction, OptionType, PlanCounts, Segment, SizingInput } from '../domain/tradeGate'
 
 export type { DojoDay, DojoRitual } from '../domain/dojoDay'
+export type { BacktestInput, BacktestResults } from '../domain/backtest'
+
+/** A saved backtest log, with its calculated results. */
+export interface BacktestLog extends BacktestInput, BacktestResults {
+  id: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BacktestFilters {
+  segment?: Segment
+  setupType?: SetupType
+  outcome?: PnlCategory
+  from?: IsoDate
+  to?: IsoDate
+}
 
 export class DojoApiError extends Error {
   readonly status: number
@@ -34,6 +51,8 @@ export interface TradePlan {
   createdAt: string
   instrument: string
   segment: Segment
+  /** Options only: CE or PE. Null for futures and equity. */
+  optionType: OptionType | null
   direction: Direction
   conviction: ConvictionLevel
   capital: number
@@ -172,4 +191,8 @@ export interface DojoApi {
   reorderRituals(keys: string[]): Promise<RitualDefinition[]>
   getTradeGateStatus(): Promise<TradeGateStatus>
   logTradePlan(input: LogTradePlanInput): Promise<TradePlan>
+  listBacktests(filters?: BacktestFilters): Promise<BacktestLog[]>
+  createBacktest(input: BacktestInput): Promise<BacktestLog>
+  updateBacktest(id: number, input: BacktestInput): Promise<BacktestLog>
+  deleteBacktest(id: number): Promise<void>
 }

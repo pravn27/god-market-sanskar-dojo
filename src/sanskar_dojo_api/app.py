@@ -9,14 +9,21 @@ from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
-from . import __version__, days, months, rituals
+from . import __version__, backtests, days, months, rituals
 from .db import connect, migrate, schema_version
-from .models import RitualFields, RitualReorder
+from .models import (
+    BacktestFields,
+    RitualFields,
+    RitualReorder,
+    Segment,
+    SetupType,
+)
 from .rituals import DefinitionError
 from .seed import PROFILE_SLUG, seed
 
@@ -58,6 +65,10 @@ def create_app(db_path: str | Path | None = None, clock: Clock | None = None) ->
     @app.exception_handler(DefinitionError)
     async def definition_error(_: Request, exc: DefinitionError) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    @app.exception_handler(backtests.BacktestNotFound)
+    async def backtest_not_found(_: Request, exc: backtests.BacktestNotFound) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"detail": f"No backtest log with id {exc.args[0]}"})
 
     def db(request: Request) -> Iterator[sqlite3.Connection]:
         """Yield the shared connection while holding the lock, one request at a time."""
@@ -183,6 +194,60 @@ def create_app(db_path: str | Path | None = None, clock: Clock | None = None) ->
         moment = now()
         with conn:
             return days.toggle(conn, profile_id, parse_day(day), ritual_key, moment.date(), moment)
+
+    @app.get(f"{API_PREFIX}/profiles/{{slug}}/backtests")
+    def list_backtests(
+        slug: str,
+        segment: Segment | None = Query(default=None),
+        setup_type: SetupType | None = Query(default=None),
+        outcome: Literal["win", "loss", "breakeven"] | None = Query(default=None),
+        start: str | None = Query(default=None, alias="from", pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        end: str | None = Query(default=None, alias="to", pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        conn: sqlite3.Connection = Depends(db),
+    ) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        logs = backtests.list_logs(
+            conn,
+            profile_id,
+            segment=segment,
+            setup_type=setup_type,
+            outcome=outcome,
+            start=parse_day(start) if start else None,
+            end=parse_day(end) if end else None,
+        )
+        return {"profile": slug, "backtests": logs}
+
+    @app.post(f"{API_PREFIX}/profiles/{{slug}}/backtests", status_code=201)
+    def create_backtest(
+        slug: str,
+        body: BacktestFields,
+        conn: sqlite3.Connection = Depends(db),
+    ) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            return backtests.create(conn, profile_id, body, now())
+
+    @app.get(f"{API_PREFIX}/profiles/{{slug}}/backtests/{{log_id}}")
+    def get_backtest(slug: str, log_id: int, conn: sqlite3.Connection = Depends(db)) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        return backtests.get_log(conn, profile_id, log_id)
+
+    @app.put(f"{API_PREFIX}/profiles/{{slug}}/backtests/{{log_id}}")
+    def update_backtest(
+        slug: str,
+        log_id: int,
+        body: BacktestFields,
+        conn: sqlite3.Connection = Depends(db),
+    ) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            return backtests.update(conn, profile_id, log_id, body, now())
+
+    @app.delete(f"{API_PREFIX}/profiles/{{slug}}/backtests/{{log_id}}")
+    def delete_backtest(slug: str, log_id: int, conn: sqlite3.Connection = Depends(db)) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            return backtests.delete(conn, profile_id, log_id)
 
     return app
 

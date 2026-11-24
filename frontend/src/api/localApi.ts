@@ -118,6 +118,7 @@ export function createLocalDojoApi(
         createdAt: now().toISOString(),
         instrument: sizing.instrument.trim(),
         segment: sizing.segment,
+        optionType: sizing.segment === 'options' ? sizing.optionType : null,
         direction: result.direction,
         conviction: sizing.conviction,
         capital: sizing.capital as number,
@@ -134,6 +135,22 @@ export function createLocalDojoApi(
       data.tradePlans.push(plan)
       write(data)
       return plan
+    },
+
+    async listBacktests() {
+      throw new DojoApiError(501, 'Backtests need the local backend.')
+    },
+
+    async createBacktest() {
+      throw new DojoApiError(501, 'Backtests need the local backend.')
+    },
+
+    async updateBacktest() {
+      throw new DojoApiError(501, 'Backtests need the local backend.')
+    },
+
+    async deleteBacktest() {
+      throw new DojoApiError(501, 'Backtests need the local backend.')
     },
   }
 }
