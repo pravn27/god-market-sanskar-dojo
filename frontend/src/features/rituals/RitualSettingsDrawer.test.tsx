@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { Modal } from 'antd'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import AppProviders from '../../AppProviders'
 import { DojoApiError, type DojoApi, type RitualDefinition } from '../../api/client'
@@ -60,6 +61,8 @@ function renderDrawer(api: DojoApi) {
 }
 
 describe('RitualSettingsDrawer', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   it('lists today\'s rituals in order with minutes and schedule', async () => {
     renderDrawer(fakeApi())
 
@@ -83,7 +86,7 @@ describe('RitualSettingsDrawer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /add ritual/i }))
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: '  Chart review  ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add ritual' }))
 
     await waitFor(() =>
       expect(api.createRitual).toHaveBeenCalledWith({
@@ -103,7 +106,7 @@ describe('RitualSettingsDrawer', () => {
     await screen.findByText('Daily Backtesting')
 
     fireEvent.click(screen.getByRole('button', { name: /add ritual/i }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Save' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Add ritual' }))
 
     expect(await screen.findByText('Enter a name for the ritual.')).toBeInTheDocument()
     expect(api.createRitual).not.toHaveBeenCalled()
@@ -118,7 +121,7 @@ describe('RitualSettingsDrawer', () => {
     // Only the open form has a Name field and a Save button, so these queries are unambiguous.
     expect(await screen.findByText('Edit ritual')).toBeInTheDocument()
     expect(screen.getByLabelText('Name')).toHaveValue('Gym')
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
 
     await waitFor(() =>
       expect(api.updateRitual).toHaveBeenCalledWith('gym', {
@@ -137,8 +140,7 @@ describe('RitualSettingsDrawer', () => {
     renderDrawer(api)
     await screen.findByText('Daily Backtesting')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for Daily Backtesting' }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Move Daily Backtesting down' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move Daily Backtesting down' }))
 
     await waitFor(() => expect(api.reorderRituals).toHaveBeenCalledWith(['webinar', 'backtesting', 'gym']))
   })
@@ -147,11 +149,8 @@ describe('RitualSettingsDrawer', () => {
     renderDrawer(fakeApi())
     await screen.findByText('Daily Backtesting')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for Daily Backtesting' }))
-    expect(await screen.findByRole('menuitem', { name: 'Move Daily Backtesting up' })).toBeDisabled()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for Gym' }))
-    expect(await screen.findByRole('menuitem', { name: 'Move Gym down' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move Daily Backtesting up' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move Gym down' })).toBeDisabled()
   })
 
   it('retires a ritual only after confirmation', async () => {
@@ -159,8 +158,7 @@ describe('RitualSettingsDrawer', () => {
     renderDrawer(api)
     await screen.findByText('Daily Backtesting')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for Daily Backtesting' }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Retire Daily Backtesting' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retire Daily Backtesting' }))
     expect(api.retireRitual).not.toHaveBeenCalled()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retire' }))
@@ -176,8 +174,7 @@ describe('RitualSettingsDrawer', () => {
     renderDrawer(api)
     await screen.findByText('Daily Backtesting')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for Daily Backtesting' }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Retire Daily Backtesting' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retire Daily Backtesting' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Retire' }))
 
     expect(await screen.findByText(/started today/)).toBeInTheDocument()
@@ -191,6 +188,43 @@ describe('RitualSettingsDrawer', () => {
 
     expect(await screen.findByText('12 of 12 active rituals')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add ritual/i })).toBeDisabled()
+  })
+
+  it('asks before discarding unsaved edits, and keeps them if the user stays', async () => {
+    const confirm = vi.spyOn(Modal, 'confirm')
+    const api = fakeApi()
+    renderDrawer(api)
+    await screen.findByText('Gym')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Gym' }))
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Gym (evening)' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Discard your changes?', cancelText: 'Keep editing' }))
+    // Staying put means the form is still open with the edit in it, and nothing was saved.
+    expect(screen.getByLabelText('Name')).toHaveValue('Gym (evening)')
+    expect(api.updateRitual).not.toHaveBeenCalled()
+  })
+
+  it('leaves the form without a prompt when nothing was changed', async () => {
+    const confirm = vi.spyOn(Modal, 'confirm')
+    renderDrawer(fakeApi())
+    await screen.findByText('Gym')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Gym' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+
+    expect(await screen.findByText('Ritual settings')).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('offers to add the first ritual when there are none', async () => {
+    renderDrawer(fakeApi({ listRituals: vi.fn(async () => []) }))
+
+    expect(await screen.findByText(/No rituals yet/)).toBeInTheDocument()
+    expect(screen.getByText('0 of 12 active rituals')).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: /add ritual/i })[1])
+    expect(await screen.findByLabelText('Name')).toBeInTheDocument()
   })
 
   it('shows a notice that changes apply from today', async () => {

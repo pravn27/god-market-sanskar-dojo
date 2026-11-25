@@ -1,10 +1,10 @@
-import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, MoreOutlined, PlusOutlined } from '@ant-design/icons'
-import { Alert, Button, Drawer, Tooltip, Typography } from 'antd'
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { Alert, Button, Drawer, Empty, Form, message, Modal, Popconfirm, Skeleton, Tooltip, Typography } from 'antd'
 import { useState } from 'react'
 
 import { useDojoApi } from '../../api/DojoApiContext'
 import type { RitualDefinition, RitualInput, RitualSchedule } from '../../api/client'
-import RitualForm from './RitualForm'
+import RitualForm, { type RitualFormValues } from './RitualForm'
 import { SCHEDULE_GROUP_LABEL, scheduleDetail } from './schedule'
 import { MAX_ACTIVE_RITUALS, useRitualDefinitions, useRitualMutations } from './useRitualSettings'
 
@@ -13,7 +13,8 @@ interface RitualSettingsDrawerProps {
   onClose: () => void
 }
 
-type FormState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; ritual: RitualDefinition }
+/** The drawer shows the list, or one ritual's form. */
+type View = { mode: 'list' } | { mode: 'create' } | { mode: 'edit'; ritual: RitualDefinition }
 
 const GROUP_ORDER: RitualSchedule[] = ['daily', 'weekdays', 'weekend', 'monthly']
 
@@ -33,22 +34,75 @@ export default function RitualSettingsDrawer({ open, onClose }: RitualSettingsDr
   const today = api.today()
   const { data: rituals = [], isLoading, error: loadError } = useRitualDefinitions(today, open)
   const mutations = useRitualMutations()
-  const [form, setForm] = useState<FormState>({ mode: 'closed' })
-  const [menuKey, setMenuKey] = useState<string | null>(null)
-  const [retireKey, setRetireKey] = useState<string | null>(null)
+  const [ritualForm] = Form.useForm<RitualFormValues>()
+  const [view, setView] = useState<View>({ mode: 'list' })
+  const [dirty, setDirty] = useState(false)
 
+  const editing = view.mode !== 'list'
   const busy = mutations.create.isPending || mutations.update.isPending || mutations.retire.isPending || mutations.reorder.isPending
+  const saving = mutations.create.isPending || mutations.update.isPending
   const atLimit = rituals.length >= MAX_ACTIVE_RITUALS
   const actionError = messageOf(mutations.retire.error) ?? messageOf(mutations.reorder.error) ?? messageOf(loadError)
+  const formError =
+    view.mode === 'create' ? messageOf(mutations.create.error) : view.mode === 'edit' ? messageOf(mutations.update.error) : undefined
   const groups = grouped(rituals)
 
-  const closeForm = () => setForm({ mode: 'closed' })
+  const openCreate = () => {
+    mutations.create.reset()
+    setDirty(false)
+    setView({ mode: 'create' })
+  }
+  const openEdit = (ritual: RitualDefinition) => {
+    mutations.update.reset()
+    setDirty(false)
+    setView({ mode: 'edit', ritual })
+  }
+  const backToList = () => {
+    setDirty(false)
+    setView({ mode: 'list' })
+  }
+
+  /** Unsaved edits are only discarded after the user confirms. */
+  const confirmDiscard = (discard: () => void) => {
+    if (!dirty) {
+      discard()
+      return
+    }
+    Modal.confirm({
+      title: 'Discard your changes?',
+      content: 'The ritual keeps the details it had before you started editing.',
+      okText: 'Discard',
+      okButtonProps: { danger: true },
+      cancelText: 'Keep editing',
+      onOk: discard,
+    })
+  }
+
+  const cancelForm = () => confirmDiscard(backToList)
+  const requestClose = () => confirmDiscard(() => {
+    backToList()
+    onClose()
+  })
 
   const submit = (input: RitualInput) => {
-    if (form.mode === 'edit') {
-      mutations.update.mutate({ key: form.ritual.key, input }, { onSuccess: closeForm })
+    if (view.mode === 'edit') {
+      const { ritual } = view
+      mutations.update.mutate(
+        { key: ritual.key, input },
+        {
+          onSuccess: () => {
+            backToList()
+            message.success(`Saved ${input.label}`)
+          },
+        },
+      )
     } else {
-      mutations.create.mutate(input, { onSuccess: closeForm })
+      mutations.create.mutate(input, {
+        onSuccess: () => {
+          backToList()
+          message.success(`Added ${input.label}`)
+        },
+      })
     }
   }
 
@@ -65,34 +119,41 @@ export default function RitualSettingsDrawer({ open, onClose }: RitualSettingsDr
     mutations.reorder.mutate(next.flat().map((item) => item.key))
   }
 
-  const formError =
-    form.mode === 'create' ? messageOf(mutations.create.error) : form.mode === 'edit' ? messageOf(mutations.update.error) : undefined
-
-  const title = form.mode === 'create' ? 'Add ritual' : form.mode === 'edit' ? 'Edit ritual' : 'Ritual settings'
+  const title = view.mode === 'create' ? 'Add ritual' : view.mode === 'edit' ? 'Edit ritual' : 'Ritual settings'
 
   return (
     <Drawer
       title={title}
       open={open}
-      onClose={onClose}
-      width={440}
+      onClose={requestClose}
+      width={460}
       destroyOnHidden
       extra={
-        form.mode === 'closed' ? (
+        editing ? undefined : (
           <Tooltip title={atLimit ? `You can have up to ${MAX_ACTIVE_RITUALS} active rituals.` : undefined}>
-            <Button type="primary" icon={<PlusOutlined />} disabled={atLimit || busy} onClick={() => setForm({ mode: 'create' })}>
+            <Button type="primary" icon={<PlusOutlined />} disabled={atLimit || busy} onClick={openCreate}>
               Add ritual
             </Button>
           </Tooltip>
+        )
+      }
+      footer={
+        editing ? (
+          <div className="ritual-form-actions">
+            <Button onClick={cancelForm}>Cancel</Button>
+            <Button type="primary" loading={saving} onClick={() => ritualForm.submit()}>
+              {view.mode === 'edit' ? 'Save changes' : 'Add ritual'}
+            </Button>
+          </div>
         ) : undefined
       }
     >
-      {form.mode !== 'closed' ? (
+      {editing ? (
         <RitualForm
-          ritual={form.mode === 'edit' ? form.ritual : null}
-          submitting={mutations.create.isPending || mutations.update.isPending}
+          form={ritualForm}
+          ritual={view.mode === 'edit' ? view.ritual : null}
           error={formError}
-          onCancel={closeForm}
+          onDirtyChange={setDirty}
           onSubmit={submit}
         />
       ) : (
@@ -104,93 +165,87 @@ export default function RitualSettingsDrawer({ open, onClose }: RitualSettingsDr
             . Changes apply from today. Past days keep the rituals and their order as they were.
           </Typography.Text>
           {actionError && <Alert type="error" showIcon style={{ marginBottom: 16 }} message={actionError} />}
-          {isLoading && <Typography.Text type="secondary">Loading rituals…</Typography.Text>}
 
-          {groups.map((group) => (
-            <section className="ritual-group" key={group.schedule}>
-              <h3 className="ritual-group-label">{SCHEDULE_GROUP_LABEL[group.schedule]}</h3>
-              {group.items.map((ritual, index) => {
-                const detail = scheduleDetail(ritual)
-                return (
-                  <div className="ritual-row" key={ritual.key}>
-                    <button
-                      type="button"
-                      className="ritual-row-main"
-                      aria-label={`Edit ${ritual.label}`}
-                      disabled={busy}
-                      onClick={() => setForm({ mode: 'edit', ritual })}
-                    >
-                      <span className="ritual-row-title">{ritual.label}</span>
-                      <span className="ritual-row-meta">
-                        <span>{ritual.minutes} min</span>
-                        {detail && <span className="ritual-row-meta-detail">{detail}</span>}
-                      </span>
-                    </button>
-                    <Button
-                      type="text"
-                      aria-label={`Actions for ${ritual.label}`}
-                      aria-expanded={menuKey === ritual.key}
-                      icon={<MoreOutlined />}
-                      disabled={busy}
-                      onClick={() => {
-                        setRetireKey(null)
-                        setMenuKey((current) => (current === ritual.key ? null : ritual.key))
-                      }}
-                    />
-                    {menuKey === ritual.key && (
-                      <div className="ritual-row-menu" role="menu" aria-label={`Actions for ${ritual.label}`}>
-                        {retireKey === ritual.key ? (
-                          <div className="ritual-row-confirm">
-                            <p>Retire this ritual? It stops from today. Past days keep it.</p>
-                            <button type="button" className="danger" onClick={() => mutations.retire.mutate(ritual.key)}>
-                              Retire
-                            </button>
-                            <button type="button" onClick={() => setRetireKey(null)}>
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              disabled={index === 0 || busy}
-                              onClick={() => {
-                                setMenuKey(null)
-                                move(ritual, -1)
-                              }}
-                            >
-                              <ArrowUpOutlined aria-hidden /> Move {ritual.label} up
-                            </button>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              disabled={index === group.items.length - 1 || busy}
-                              onClick={() => {
-                                setMenuKey(null)
-                                move(ritual, 1)
-                              }}
-                            >
-                              <ArrowDownOutlined aria-hidden /> Move {ritual.label} down
-                            </button>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              className="danger"
+          {isLoading ? (
+            <Skeleton active paragraph={{ rows: 4 }} />
+          ) : rituals.length === 0 ? (
+            <Empty description="No rituals yet. Add the first one to start your day.">
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                Add ritual
+              </Button>
+            </Empty>
+          ) : (
+            groups.map((group) => (
+              <section className="ritual-group" key={group.schedule}>
+                <h3 className="ritual-group-label">{SCHEDULE_GROUP_LABEL[group.schedule]}</h3>
+                {group.items.map((ritual, index) => {
+                  const detail = scheduleDetail(ritual)
+                  return (
+                    <div className="ritual-row" key={ritual.key}>
+                      <button type="button" className="ritual-row-main" disabled={busy} onClick={() => openEdit(ritual)}>
+                        <span className="ritual-row-title">{ritual.label}</span>
+                        <span className="ritual-row-meta">
+                          <span>{ritual.minutes} min</span>
+                          {detail && <span className="ritual-row-meta-detail">{detail}</span>}
+                        </span>
+                      </button>
+                      <div className="ritual-row-actions">
+                        <Tooltip title="Move up">
+                          <Button
+                            type="text"
+                            icon={<ArrowUpOutlined />}
+                            aria-label={`Move ${ritual.label} up`}
+                            disabled={index === 0 || busy}
+                            onClick={() => move(ritual, -1)}
+                          />
+                        </Tooltip>
+                        <Tooltip title="Move down">
+                          <Button
+                            type="text"
+                            icon={<ArrowDownOutlined />}
+                            aria-label={`Move ${ritual.label} down`}
+                            disabled={index === group.items.length - 1 || busy}
+                            onClick={() => move(ritual, 1)}
+                          />
+                        </Tooltip>
+                        <Tooltip title="Edit">
+                          <Button
+                            type="text"
+                            icon={<EditOutlined />}
+                            aria-label={`Edit ${ritual.label}`}
+                            disabled={busy}
+                            onClick={() => openEdit(ritual)}
+                          />
+                        </Tooltip>
+                        <Popconfirm
+                          title={`Retire ${ritual.label}?`}
+                          description="It stops from today. Past days keep it."
+                          okText="Retire"
+                          okButtonProps={{ danger: true }}
+                          cancelText="Keep"
+                          onConfirm={() =>
+                            mutations.retire.mutate(ritual.key, {
+                              onSuccess: () => message.success(`Retired ${ritual.label}`),
+                            })
+                          }
+                        >
+                          <Tooltip title="Retire">
+                            <Button
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              aria-label={`Retire ${ritual.label}`}
                               disabled={busy}
-                              onClick={() => setRetireKey(ritual.key)}
-                            >
-                              <DeleteOutlined aria-hidden /> Retire {ritual.label}
-                            </button>
-                          </>
-                        )}
+                            />
+                          </Tooltip>
+                        </Popconfirm>
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-            </section>
-          ))}
+                    </div>
+                  )
+                })}
+              </section>
+            ))
+          )}
         </>
       )}
     </Drawer>

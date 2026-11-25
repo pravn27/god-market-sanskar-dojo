@@ -1,10 +1,10 @@
-import { Alert, Button, Checkbox, Form, Input, InputNumber, Select, Typography } from 'antd'
+import { Alert, Checkbox, Form, Input, InputNumber, Select, Typography, type FormInstance } from 'antd'
 import { useEffect } from 'react'
 
 import type { RitualDefinition, RitualInput, RitualSchedule } from '../../api/client'
 import { WEEKDAY_NAMES } from './schedule'
 
-interface FormValues {
+export interface RitualFormValues {
   label: string
   minutes: number
   schedule: RitualSchedule
@@ -22,16 +22,20 @@ const SCHEDULE_OPTIONS: { value: RitualSchedule; label: string }[] = [
 const WEEKDAY_OPTIONS = WEEKDAY_NAMES.map((name, index) => ({ label: name, value: index }))
 
 interface RitualFormProps {
+  /** The form instance is owned by the drawer, so its footer can submit it. */
+  form: FormInstance<RitualFormValues>
   /** `null` creates a ritual; a definition edits it. */
   ritual: RitualDefinition | null
-  submitting: boolean
   error?: string
-  onCancel: () => void
+  onDirtyChange: (dirty: boolean) => void
   onSubmit: (input: RitualInput) => void
 }
 
-export default function RitualForm({ ritual, submitting, error, onCancel, onSubmit }: RitualFormProps) {
-  const [form] = Form.useForm<FormValues>()
+/**
+ * Fields for one ritual. Validation runs on submit and on blur; a failed check shows under its field.
+ * Enter in a field submits the form, as the drawer's Save button does.
+ */
+export default function RitualForm({ form, ritual, error, onDirtyChange, onSubmit }: RitualFormProps) {
   const schedule = Form.useWatch('schedule', form)
 
   useEffect(() => {
@@ -44,10 +48,7 @@ export default function RitualForm({ ritual, submitting, error, onCancel, onSubm
     })
   }, [ritual, form])
 
-  const submit = async () => {
-    // Field errors are already shown under each field, so a failed check just stops here.
-    const values = await form.validateFields().catch(() => null)
-    if (!values) return
+  const finish = (values: RitualFormValues) => {
     onSubmit({
       label: values.label.trim(),
       minutes: values.minutes,
@@ -65,7 +66,13 @@ export default function RitualForm({ ritual, submitting, error, onCancel, onSubm
         The change applies from today. Past days keep the ritual as it was.
       </Typography.Paragraph>
       {error && <Alert type="error" showIcon style={{ marginBottom: 16 }} message={error} />}
-      <Form form={form} layout="vertical" requiredMark="optional">
+      <Form
+        form={form}
+        layout="vertical"
+        requiredMark="optional"
+        onFinish={finish}
+        onValuesChange={() => onDirtyChange(form.isFieldsTouched())}
+      >
         <Form.Item
           name="label"
           label="Name"
@@ -74,14 +81,17 @@ export default function RitualForm({ ritual, submitting, error, onCancel, onSubm
             { max: 120, message: 'Keep the name to 120 characters or fewer.' },
           ]}
         >
-          <Input maxLength={120} placeholder="For example: Chart review" autoFocus />
+          <Input maxLength={120} showCount placeholder="For example: Chart review" autoFocus />
         </Form.Item>
         <Form.Item
           name="minutes"
-          label="Minutes"
-          rules={[{ required: true, message: 'Enter the minutes this takes.' }]}
+          label="Time it takes"
+          rules={[
+            { required: true, message: 'Enter the minutes this takes.' },
+            { type: 'number', min: 1, max: 240, message: 'Use 1 to 240 minutes.' },
+          ]}
         >
-          <InputNumber min={1} max={240} style={{ width: '100%' }} />
+          <InputNumber min={1} max={240} addonAfter="min" style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item name="schedule" label="How often">
           <Select options={SCHEDULE_OPTIONS} />
@@ -105,12 +115,6 @@ export default function RitualForm({ ritual, submitting, error, onCancel, onSubm
           </Form.Item>
         )}
       </Form>
-      <div className="ritual-form-actions">
-        <Button onClick={onCancel}>Cancel</Button>
-        <Button type="primary" onClick={submit} loading={submitting}>
-          Save
-        </Button>
-      </div>
     </div>
   )
 }
