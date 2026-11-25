@@ -14,7 +14,7 @@ def client(tmp_path):
 def test_health_reports_schema_and_profile(client):
     body = client.get("/api/v1/health").json()
     assert body["status"] == "ok"
-    assert body["schema_version"] == 2
+    assert body["schema_version"] == 3
     assert body["profile"] == "praveen"
 
 

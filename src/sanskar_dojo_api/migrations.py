@@ -195,7 +195,22 @@ CREATE TABLE backtest_log_checks (
 );
 """
 
+# The instrument list a profile picks from in Trade Gate and the backtest log.
+# Symbols are stored upper case and are unique per profile. The lot size is optional (equity has none).
+V3_INSTRUMENTS = """
+CREATE TABLE instruments (
+    id          INTEGER PRIMARY KEY,
+    profile_id  INTEGER NOT NULL REFERENCES profiles(id),
+    symbol      TEXT NOT NULL CHECK (length(symbol) BETWEEN 1 AND 40 AND symbol = upper(symbol)),
+    lot_size    INTEGER CHECK (lot_size IS NULL OR lot_size > 0),
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    UNIQUE (profile_id, symbol)
+);
+"""
+
 MIGRATIONS: tuple[str, ...] = (
     V1_PROFILES_AND_RITUALS + V1_TRADE_GATE,
     V2_BACKTEST_LOGS,
+    V3_INSTRUMENTS,
 )

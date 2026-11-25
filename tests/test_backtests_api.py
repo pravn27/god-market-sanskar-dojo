@@ -156,7 +156,7 @@ def test_delete_of_unknown_id_is_not_found(client):
 
 
 def test_migration_two_creates_the_backtest_tables(app, client):
-    assert client.get("/api/v1/health").json()["schema_version"] == 2
+    assert client.get("/api/v1/health").json()["schema_version"] == 3
     names = {
         row["name"]
         for row in app.state.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")

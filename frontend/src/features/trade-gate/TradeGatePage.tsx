@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Checkbox, Col, Input, InputNumber, Radio, Row, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Checkbox, Col, InputNumber, Radio, Row, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -16,6 +16,7 @@ import {
   shareRangeRows,
   TRADE_GATE_RULES,
 } from '../../domain/tradeGate'
+import InstrumentSelect from '../instruments/InstrumentSelect'
 import { useLogTradePlan, useTradeGateStatus } from './useTradeGate'
 
 const rupees = (value: number) => `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
@@ -261,7 +262,14 @@ export default function TradeGatePage() {
                   </Radio.Group>
                 </div>
               )}
-              <Input aria-label="Instrument" placeholder="Instrument" value={form.instrument} onChange={(e) => update({ instrument: e.target.value })} />
+              <InstrumentSelect
+                label="Instrument"
+                value={form.instrument || null}
+                onChange={(symbol, instrument) =>
+                  // A listed instrument with a lot size fills the lot size for futures and options.
+                  update({ instrument: symbol ?? '', ...(isFno && instrument?.lotSize ? { lotSize: instrument.lotSize } : {}) })
+                }
+              />
               <Row gutter={8}>
                 <Col span={8}>
                   <Typography.Text type="secondary">Entry</Typography.Text>

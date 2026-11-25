@@ -1,9 +1,10 @@
-import { BulbFilled, BulbOutlined, DownOutlined, FireOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
+import { BulbFilled, BulbOutlined, DownOutlined, FireOutlined, SettingOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons'
 import { Button, Dropdown, Layout, Menu, Tooltip, Typography } from 'antd'
 import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 import BacktestsPage from './features/backtests/BacktestsPage'
+import InstrumentsDrawer from './features/instruments/InstrumentsDrawer'
 import PlannedScreen from './features/planned/PlannedScreen'
 import RitualSettingsDrawer from './features/rituals/RitualSettingsDrawer'
 import RitualsPage from './features/rituals/RitualsPage'
@@ -21,6 +22,7 @@ export default function App() {
   const themeMode = useUiStore((state) => state.themeMode)
   const toggleTheme = useUiStore((state) => state.toggleTheme)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [instrumentsOpen, setInstrumentsOpen] = useState(false)
   const isDark = themeMode === 'dark'
   const themeLabel = isDark ? 'Switch to light theme' : 'Switch to dark theme'
 
@@ -46,9 +48,13 @@ export default function App() {
             trigger={['click']}
             placement="bottomRight"
             menu={{
-              items: [{ key: 'ritual-settings', icon: <SettingOutlined />, label: 'Ritual settings' }],
+              items: [
+                { key: 'ritual-settings', icon: <SettingOutlined />, label: 'Ritual settings' },
+                { key: 'instruments', icon: <UnorderedListOutlined />, label: 'Instruments' },
+              ],
               onClick: ({ key }) => {
                 if (key === 'ritual-settings') setSettingsOpen(true)
+                if (key === 'instruments') setInstrumentsOpen(true)
               },
             }}
           >
@@ -59,6 +65,7 @@ export default function App() {
         </div>
       </Header>
       <RitualSettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <InstrumentsDrawer open={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
       <Layout>
         <Sider className="app-sider" theme={isDark ? 'dark' : 'light'} breakpoint="md" collapsedWidth={0} width={210}>
           <Menu

@@ -6,6 +6,8 @@ import type { BacktestInput, ExitReason, PnlCategory, SetupFamily, SetupType, Ti
 import type { OptionType, Segment, Side } from '../domain/tradeGate'
 import {
   DojoApiError,
+  type Instrument,
+  type InstrumentInput,
   type BacktestFilters,
   type BacktestLog,
   type CalendarSummary,
@@ -415,6 +417,17 @@ function toApiBacktestBody(input: BacktestInput) {
   }
 }
 
+interface ApiInstrument {
+  id: number
+  symbol: string
+  lot_size: number | null
+  created_at: string
+  updated_at: string
+}
+
+const toInstrument = (body: ApiInstrument): Instrument => ({ id: body.id, symbol: body.symbol, lotSize: body.lot_size })
+const toApiInstrumentBody = (input: InstrumentInput) => ({ symbol: input.symbol, lot_size: input.lotSize })
+
 export interface HttpDojoApiOptions {
   /** Trade Gate has no backend endpoints yet, so it is delegated to another implementation. */
   tradeGate: Pick<DojoApi, 'getTradeGateStatus' | 'logTradePlan'>
@@ -528,6 +541,24 @@ export function createHttpDojoApi({
 
     async deleteBacktest(id: number) {
       await send<unknown>(`/backtests/${id}`, { method: 'DELETE' })
+    },
+
+    async listInstruments() {
+      const body = await send<{ instruments: ApiInstrument[] }>('/instruments')
+      return body.instruments.map(toInstrument)
+    },
+
+    async createInstrument(input: InstrumentInput) {
+      return toInstrument(await send<ApiInstrument>('/instruments', json(toApiInstrumentBody(input))))
+    },
+
+    async updateInstrument(id: number, input: InstrumentInput) {
+      const init: RequestInit = { method: 'PUT', body: JSON.stringify(toApiInstrumentBody(input)) }
+      return toInstrument(await send<ApiInstrument>(`/instruments/${id}`, init))
+    },
+
+    async deleteInstrument(id: number) {
+      await send<unknown>(`/instruments/${id}`, { method: 'DELETE' })
     },
 
     getTradeGateStatus(): Promise<TradeGateStatus> {

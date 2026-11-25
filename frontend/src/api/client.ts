@@ -13,6 +13,18 @@ export interface BacktestLog extends BacktestInput, BacktestResults {
   updatedAt: string
 }
 
+/** One entry in the instrument list. Lot size is empty for equity. */
+export interface Instrument {
+  id: number
+  symbol: string
+  lotSize: number | null
+}
+
+export interface InstrumentInput {
+  symbol: string
+  lotSize: number | null
+}
+
 export interface BacktestFilters {
   segment?: Segment
   setupType?: SetupType
@@ -195,4 +207,8 @@ export interface DojoApi {
   createBacktest(input: BacktestInput): Promise<BacktestLog>
   updateBacktest(id: number, input: BacktestInput): Promise<BacktestLog>
   deleteBacktest(id: number): Promise<void>
+  listInstruments(): Promise<Instrument[]>
+  createInstrument(input: InstrumentInput): Promise<Instrument>
+  updateInstrument(id: number, input: InstrumentInput): Promise<Instrument>
+  deleteInstrument(id: number): Promise<void>
 }

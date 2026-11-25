@@ -18,6 +18,7 @@ import {
   validateDraft,
 } from '../../domain/backtest'
 import type { OptionType, Segment, Side } from '../../domain/tradeGate'
+import InstrumentSelect from '../instruments/InstrumentSelect'
 import { labelOf, pnlColor, plain, ratio, rupees } from './format'
 
 interface BacktestFormProps {
@@ -93,7 +94,14 @@ export default function BacktestForm({ initial, saving, error, onSave, onCancel 
           </Col>
           <Col xs={24} md={12}>
             <Field label="Instrument">
-              <Input aria-label="Instrument" placeholder="e.g. NIFTY, NG, RELIANCE" value={draft.instrument} onChange={(e) => update({ instrument: e.target.value })} />
+              <InstrumentSelect
+                label="Instrument"
+                value={draft.instrument || null}
+                onChange={(symbol, instrument) =>
+                  // A listed instrument with a lot size fills the lot size for futures and options.
+                  update({ instrument: symbol ?? '', ...(isFno && instrument?.lotSize ? { lotSize: instrument.lotSize } : {}) })
+                }
+              />
             </Field>
           </Col>
           <Col xs={24} md={12}>

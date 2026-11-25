@@ -152,5 +152,21 @@ export function createLocalDojoApi(
     async deleteBacktest() {
       throw new DojoApiError(501, 'Backtests need the local backend.')
     },
+
+    async listInstruments() {
+      throw new DojoApiError(501, 'The instrument list needs the local backend.')
+    },
+
+    async createInstrument() {
+      throw new DojoApiError(501, 'The instrument list needs the local backend.')
+    },
+
+    async updateInstrument() {
+      throw new DojoApiError(501, 'The instrument list needs the local backend.')
+    },
+
+    async deleteInstrument() {
+      throw new DojoApiError(501, 'The instrument list needs the local backend.')
+    },
   }
 }

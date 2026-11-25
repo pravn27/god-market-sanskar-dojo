@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import App from '../../App'
 import AppProviders from '../../AppProviders'
 import { createLocalDojoApi } from '../../api/localApi'
+import { pickInstrument, SAMPLE_INSTRUMENTS } from '../instruments/instrumentTestUtils'
 
 function memoryStorage() {
   const items = new Map<string, string>()
@@ -14,7 +15,11 @@ function memoryStorage() {
 }
 
 function renderGate() {
-  const api = createLocalDojoApi(memoryStorage(), () => new Date(2026, 10, 18, 9, 0))
+  // The instrument list comes from the backend, so the local api is given a fixed list.
+  const api = {
+    ...createLocalDojoApi(memoryStorage(), () => new Date(2026, 10, 18, 9, 0)),
+    listInstruments: async () => SAMPLE_INSTRUMENTS,
+  }
   window.history.pushState({}, '', '/trade-gate')
   render(
     <AppProviders api={api}>
@@ -32,7 +37,7 @@ describe('TradeGatePage', () => {
 
     fireEvent.click(screen.getByText('Equity'))
     expect(screen.queryAllByText('Points allowed')).toHaveLength(0)
-    type('Instrument', 'Test stock')
+    await pickInstrument('Instrument', 'RELIANCE')
     type('Capital', '200000')
     expect(screen.getByLabelText('Capital')).toHaveValue('200,000')
     expect(screen.getByText('₹4,000')).toBeInTheDocument()
@@ -60,7 +65,7 @@ describe('TradeGatePage', () => {
     // "Entry price" exists only on the backtest form, so waiting for it means the route has changed.
     expect(await screen.findByLabelText('Entry price')).toHaveValue('3950')
     expect(window.location.pathname).toBe('/backtests')
-    expect(screen.getByLabelText('Instrument')).toHaveValue('Test stock')
+    expect(screen.getByTitle('RELIANCE')).toBeInTheDocument()
     expect(screen.getByLabelText('Stop loss')).toHaveValue('3850')
     expect(screen.getByLabelText('Target 1')).toHaveValue('4300')
     expect(screen.getByLabelText('Quantity (shares)')).toHaveValue('20')
@@ -77,12 +82,12 @@ describe('TradeGatePage', () => {
 
   it('clears the trade when the instrument changes and keeps capital', async () => {
     renderGate()
-    type('Instrument', 'NG Mini')
+    await pickInstrument('Instrument', 'NATURALGAS')
     type('Capital', '300000')
     type('Entry', '7780')
     fireEvent.click(screen.getByText('Sell / Short'))
     fireEvent.click(screen.getByText('Equity'))
-    expect(screen.getByLabelText('Instrument')).toHaveValue('')
+    expect(document.querySelector('.ant-select-selection-item')).toBeNull()
     expect(screen.getByLabelText('Entry')).toHaveValue('')
     expect(screen.getByLabelText('Capital')).toHaveValue('300,000')
     expect(screen.getByText('Buy / Long').closest('label')).toHaveClass('ant-radio-button-wrapper-checked')

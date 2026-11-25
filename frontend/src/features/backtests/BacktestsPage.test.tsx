@@ -6,6 +6,7 @@ import AppProviders from '../../AppProviders'
 import type { BacktestLog } from '../../api/client'
 import { createLocalDojoApi } from '../../api/localApi'
 import { type BacktestDraft, type BacktestInput, calculateDraft, emptyDraft, toBacktestInput } from '../../domain/backtest'
+import { pickInstrument, SAMPLE_INSTRUMENTS } from '../instruments/instrumentTestUtils'
 
 function memoryStorage() {
   const items = new Map<string, string>()
@@ -45,6 +46,7 @@ function fakeApi(logs: BacktestLog[] = []) {
   return {
     ...base,
     listBacktests: vi.fn(async () => logs),
+    listInstruments: vi.fn(async () => SAMPLE_INSTRUMENTS),
     createBacktest: vi.fn<(input: BacktestInput) => Promise<BacktestLog>>(async () => makeLog(8)),
     updateBacktest: vi.fn(async (id: number) => makeLog(id)),
     deleteBacktest: vi.fn(async () => undefined),
@@ -88,7 +90,7 @@ describe('BacktestsPage', () => {
     expect(save).toBeDisabled()
     expect(screen.getByText('instrument must not be blank')).toBeInTheDocument()
 
-    type('Instrument', 'NIFTY')
+    await pickInstrument('Instrument', 'NIFTY')
     type('Expiry date', '2026-11-26')
     type('Entry date', '2026-11-18')
     type('Exit date', '2026-11-20')
@@ -117,7 +119,7 @@ describe('BacktestsPage', () => {
     renderBacktests(fakeApi([makeLog(7)]))
 
     fireEvent.click(await screen.findByLabelText('Edit backtest 7'))
-    expect(await screen.findByLabelText('Instrument')).toHaveValue('NIFTY')
+    expect(await screen.findByTitle('NIFTY')).toBeInTheDocument()
     expect(screen.getByLabelText('Entry price')).toHaveValue('24000')
     expect(screen.getByLabelText('Target 1')).toHaveValue('24300')
     expect(screen.getByText('Edit backtest 7')).toBeInTheDocument()
@@ -151,7 +153,7 @@ describe('BacktestsPage', () => {
       </AppProviders>,
     )
 
-    expect(await screen.findByLabelText('Instrument')).toHaveValue('TCS')
+    expect(await screen.findByTitle('TCS')).toBeInTheDocument()
     expect(screen.getByLabelText('Quantity (shares)')).toHaveValue('10')
     expect(screen.getByText('Sell / Short').closest('label')).toHaveClass('ant-radio-button-wrapper-checked')
   })

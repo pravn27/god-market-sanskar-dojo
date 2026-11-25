@@ -215,3 +215,25 @@ def _forbid(model: BaseModel, names: tuple[str, ...], segment: str) -> None:
     present = [name for name in names if getattr(model, name) is not None]
     if present:
         raise ValueError(f"{segment} does not use: {', '.join(present)}")
+
+
+# Letters, digits and a few punctuation marks used in market symbols (M&M, BAJAJ-AUTO, NIFTY 50).
+_SYMBOL = re.compile(r"^[A-Z0-9][A-Z0-9&._\- ]*$")
+
+
+class InstrumentFields(BaseModel):
+    """One entry in the instrument list. The symbol is stored upper case, so NIFTY and nifty are one entry."""
+
+    symbol: str = Field(min_length=1, max_length=40)
+    # Lot size for futures and options. Leave empty for equity.
+    lot_size: int | None = Field(default=None, ge=1)
+
+    @field_validator("symbol")
+    @classmethod
+    def normalise_symbol(cls, value: str) -> str:
+        cleaned = " ".join(value.split()).upper()
+        if not cleaned:
+            raise ValueError("symbol must not be blank")
+        if not _SYMBOL.match(cleaned):
+            raise ValueError("symbol may use letters, digits, spaces and & . - _ only")
+        return cleaned

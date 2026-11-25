@@ -15,10 +15,11 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
-from . import __version__, backtests, days, months, rituals
+from . import __version__, backtests, days, instruments, months, rituals
 from .db import connect, migrate, schema_version
 from .models import (
     BacktestFields,
+    InstrumentFields,
     RitualFields,
     RitualReorder,
     Segment,
@@ -69,6 +70,14 @@ def create_app(db_path: str | Path | None = None, clock: Clock | None = None) ->
     @app.exception_handler(backtests.BacktestNotFound)
     async def backtest_not_found(_: Request, exc: backtests.BacktestNotFound) -> JSONResponse:
         return JSONResponse(status_code=404, content={"detail": f"No backtest log with id {exc.args[0]}"})
+
+    @app.exception_handler(instruments.InstrumentNotFound)
+    async def instrument_not_found(_: Request, exc: instruments.InstrumentNotFound) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"detail": f"No instrument with id {exc.args[0]}"})
+
+    @app.exception_handler(instruments.InstrumentExists)
+    async def instrument_exists(_: Request, exc: instruments.InstrumentExists) -> JSONResponse:
+        return JSONResponse(status_code=409, content={"detail": f"{exc.symbol} is already in the list."})
 
     def db(request: Request) -> Iterator[sqlite3.Connection]:
         """Yield the shared connection while holding the lock, one request at a time."""
@@ -248,6 +257,38 @@ def create_app(db_path: str | Path | None = None, clock: Clock | None = None) ->
         profile_id = profile_id_for(conn, slug)
         with conn:
             return backtests.delete(conn, profile_id, log_id)
+
+    @app.get(f"{API_PREFIX}/profiles/{{slug}}/instruments")
+    def list_instruments(slug: str, conn: sqlite3.Connection = Depends(db)) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        return {"profile": slug, "instruments": instruments.list_instruments(conn, profile_id)}
+
+    @app.post(f"{API_PREFIX}/profiles/{{slug}}/instruments", status_code=201)
+    def create_instrument(
+        slug: str,
+        body: InstrumentFields,
+        conn: sqlite3.Connection = Depends(db),
+    ) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            return instruments.create(conn, profile_id, body, now())
+
+    @app.put(f"{API_PREFIX}/profiles/{{slug}}/instruments/{{instrument_id}}")
+    def update_instrument(
+        slug: str,
+        instrument_id: int,
+        body: InstrumentFields,
+        conn: sqlite3.Connection = Depends(db),
+    ) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            return instruments.update(conn, profile_id, instrument_id, body, now())
+
+    @app.delete(f"{API_PREFIX}/profiles/{{slug}}/instruments/{{instrument_id}}")
+    def delete_instrument(slug: str, instrument_id: int, conn: sqlite3.Connection = Depends(db)) -> dict:
+        profile_id = profile_id_for(conn, slug)
+        with conn:
+            return instruments.delete(conn, profile_id, instrument_id)
 
     return app
 
